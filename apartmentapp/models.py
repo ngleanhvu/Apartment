@@ -2,6 +2,7 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta
 
 from ckeditor.fields import RichTextField
+from cloudinary.models import CloudinaryField
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from enum import Enum
@@ -30,7 +31,7 @@ class User(AbstractUser):
     date_of_birth = models.DateTimeField(auto_now=False, null=True)
     gender = models.BooleanField(default=True)
     citizen_card = models.CharField(max_length=15, null=False, unique=True)
-    thumbnail = models.ImageField(upload_to='users/%Y/%m')
+    thumbnail = CloudinaryField(null=True)
     changed_password = models.BooleanField(default=False)
 
     def __str__(self):
@@ -102,7 +103,7 @@ class Package(BaseModel):
     )
     pickup_time = models.DateTimeField(null=True)
     quantity_items = models.IntegerField(default=1)
-    thumbnail = models.ImageField(upload_to='packages/%Y/%m')
+    thumbnail = CloudinaryField(null=True)
     description = RichTextField()
     package = models.ForeignKey(StorageLocker, on_delete=models.CASCADE)
 
@@ -176,7 +177,7 @@ class Transaction(BaseModel):
         choices=PaymentGateway.choices(),
         default=PaymentGateway.TRANSFER
     )
-    thumbnail = models.ImageField(upload_to='receipts/%Y/%m')
+    thumbnail = CloudinaryField(null=True)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     fees = models.ManyToManyField('Fee', through='TransactionFee', related_name='transactions')
 

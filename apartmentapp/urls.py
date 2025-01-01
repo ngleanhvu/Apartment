@@ -1,7 +1,11 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from . import views
 
-from apartmentapp.admin import admin_site
+# Ten API de so nhieu de theo chuan thiet ke RESTFull API
+r = DefaultRouter()
+r.register('users', views.UserViewSet, basename='users')
 
 urlpatterns = [
-    path('admin/', admin_site.urls)
+    path('', include(r.urls))
 ]
