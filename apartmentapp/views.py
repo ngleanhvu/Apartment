@@ -3,7 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from apartmentapp import serializers
-from apartmentapp.models import User
+from apartmentapp.models import User, Transaction
 from cloudinary.exceptions import Error as CloudinaryError
 
 # Create your views here.
@@ -49,7 +49,9 @@ class UserViewSet(viewsets.ModelViewSet):
         except:
             return Response({'error', 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
-
+class TransactionViewSet(viewsets.ModelViewSet):
+    queryset = Transaction.objects.filter(active=True)
+    serializer_class = serializers.TransactionSerializer
 
 
 

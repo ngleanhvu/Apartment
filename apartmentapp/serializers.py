@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from apartmentapp.models import User
+from apartmentapp.models import User, Fee, MonthlyFee, TransactionMonthlyFee, Transaction
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -24,3 +25,19 @@ class UserSerializer(serializers.ModelSerializer):
         data['value'] = instance.thumbnail.url if instance.thumbnail else ''
 
         return data
+
+class MonthlyFeeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MonthlyFee
+        fields = ['id', 'amount', 'fee', 'user', 'created_date', 'status']
+
+class FeeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Fee
+        fields = ['id', 'name', 'description']
+
+class TransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = ['id', 'amount', 'created_date', 'status', 'user', 'room', 'payment_gateway', 'description', 'thumbnail']
+

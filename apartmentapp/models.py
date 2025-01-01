@@ -55,6 +55,7 @@ class Room(BaseModel):
         default=RoomStatus.AVAILABLE
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    unit_price = models.FloatField(default=0)
 
     def __str__(self):
         return self.room_number
@@ -130,7 +131,7 @@ class Reflection(BaseModel):
     resolution = models.CharField(max_length=255, null=True, blank=True)
     resolved_date = models.DateTimeField(null=True)
     admin_resolved = models.CharField(max_length=255)
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return self.title
@@ -167,40 +168,73 @@ class PaymentGateway(Enum):
     def choices(cls):
         return [(x.value, x.name) for x in cls]
 
+class TransactionStatus(Enum):
+    PENDING = 'Pending'
+    SUCCESS = 'Success'
+    FAIL = 'Fail'
+
+    @classmethod
+    def choices(cls):
+        return [(x.value, x.name) for x in cls]
+
 class Transaction(BaseModel):
-    recipient_account_number = models.CharField(max_length=20)
     amount = models.FloatField(default=0)
     description = models.CharField(max_length=100)
-    sender_account_number = models.CharField(max_length=100)
     payment_gateway = models.CharField(
         max_length=20,
         choices=PaymentGateway.choices(),
         default=PaymentGateway.TRANSFER
     )
     thumbnail = CloudinaryField(null=True)
+    status = models.CharField(
+        max_length=20,
+        choices=TransactionStatus.choices(),
+        default=TransactionStatus.PENDING.value
+    )
+
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    fees = models.ManyToManyField('Fee', through='TransactionFee', related_name='transactions')
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True)
+
+    monthly_fees = models.ManyToManyField('MonthlyFee', through='TransactionMonthlyFee', related_name='transactions')
 
     def __str__(self):
         return self.amount
 
 class Fee(BaseModel):
     name = models.CharField(max_length=50)
-    unit_price = models.FloatField(default=0)
-    unit = models.CharField(max_length=20)
+    description = models.CharField(max_length=100)
 
     def __str__(self):
         return self.name
 
-class TransactionFee(BaseModel):
-    note = models.CharField(max_length=100)
-    unit_price = models.FloatField(default=0)
-    quantity = models.IntegerField(default=0)
-    fee = models.ForeignKey(Fee, on_delete=models.CASCADE)
-    transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE)
+class MonthlyFeeStatus(Enum):
+    PENDING = 'Pending'
+    PAID = 'Paid'
+
+    @classmethod
+    def choices(cls):
+        return [(x.value, x.name) for x in cls]
+
+class MonthlyFee(BaseModel):
+    amount = models.FloatField(default=0)
+    status = models.CharField(
+        max_length=20,
+        choices=MonthlyFeeStatus.choices(),
+        default=MonthlyFeeStatus.PENDING
+    )
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True)
+    fee = models.ForeignKey(Fee, on_delete=models.SET_NULL, null=True)
 
     class Meta:
-        unique_together = ('fee', 'transaction')
+        unique_together = ('room', 'fee', 'created_date')
+
+class TransactionMonthlyFee(BaseModel):
+    amount = models.FloatField(default=0)
+    monthly_fee = models.ForeignKey(MonthlyFee, on_delete=models.SET_NULL, null=True)
+    transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        unique_together = ('monthly_fee', 'transaction')
 
 
 
