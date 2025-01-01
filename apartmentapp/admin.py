@@ -35,4 +35,4 @@ class UserAdmin(admin.ModelAdmin):
         ))
 
 admin_site.register(Reflection, ReflectionAdmin)
-admin_site.register(User, UserAdmin)
+admin_site.register(User)

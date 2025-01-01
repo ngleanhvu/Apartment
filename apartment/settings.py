@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'apartmentapp.apps.ApartmentAppConfig',
     'ckeditor',
     'ckeditor_uploader',
+    'drf_yasg',
 ]
 
 MIDDLEWARE = [
@@ -82,7 +83,6 @@ DATABASES = {
         'NAME': 'apartment_db',
         'USER': 'root',
         'PASSWORD': '1234',
-        'HOST': ''  # mặc định localhost
     }
 }
 
@@ -132,3 +132,13 @@ CKEDITOR_UPLOAD_PATH ='upload_ckeditor_dir/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+import cloudinary
+
+cloudinary.config(
+    cloud_name="dea1l3vvu",
+    api_key="632729326888512",
+    api_secret="lOmmfYvysmFHA1lgmPZRg0hUuZM",
+    secure=True
+)
+
