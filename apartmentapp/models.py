@@ -1,6 +1,5 @@
-from contextlib import nullcontext
-from datetime import datetime, timedelta
 
+from datetime import datetime, timedelta
 from ckeditor.fields import RichTextField
 from cloudinary.models import CloudinaryField
 from django.contrib.auth.models import AbstractUser
@@ -33,6 +32,7 @@ class User(AbstractUser):
     citizen_card = models.CharField(max_length=15, null=False, unique=True)
     thumbnail = CloudinaryField(null=True)
     changed_password = models.BooleanField(default=False)
+    #room = models.ForeignKey('Room', on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         return self.full_name
@@ -101,11 +101,11 @@ class Package(BaseModel):
         choices=PackageStatus.choices(),
         default=PackageStatus.NOT_RECEIVED
     )
-    pickup_time = models.DateTimeField(null=True)
+    pickup_time = models.DateTimeField(null=True, blank=True)
     quantity_items = models.IntegerField(default=1)
     thumbnail = CloudinaryField(null=True)
     description = RichTextField()
-    package = models.ForeignKey(StorageLocker, on_delete=models.CASCADE)
+    storage_locker = models.ForeignKey(StorageLocker, on_delete=models.CASCADE, related_name='packages')
 
     def __str__(self):
         return self.description

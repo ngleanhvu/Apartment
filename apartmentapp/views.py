@@ -1,10 +1,14 @@
+from cloudinary.provisioning import users
 from cloudinary.uploader import upload_image, upload
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from apartmentapp import serializers
-from apartmentapp.models import User
+from apartmentapp.models import User, StorageLocker, Package
 from cloudinary.exceptions import Error as CloudinaryError
+
+from apartmentapp.serializers import StorageLockerSerializer
+
 
 # Create your views here.
 
@@ -42,18 +46,32 @@ class UserViewSet(viewsets.ModelViewSet):
             user.set_password(password)
             user.changed_password=True
             user.save()
-
             return Response({'msg': 'Active user success!'},
                             status=status.HTTP_200_OK)
-
         except:
             return Response({'error', 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
+class StorageLockerViewSet(viewsets.ModelViewSet):
+    serializer_class = serializers.StorageLockerSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
+    def get_permissions(self):
+        return [permissions.IsAuthenticated()]
 
+    def get_queryset(self):
+        user = self.request.user
+        print("Logged-in user:", user)
+        if user.is_staff:
+            return StorageLocker.objects.filter(active=True)
+        return StorageLocker.objects.filter(user=user, active=True)
 
+class PackageViewSet(viewsets.ModelViewSet):
+    queryset = Package.objects.all()
+    serializer_class = serializers.Package
+    permission_classes = [permissions.IsAuthenticated]
 
-
-
-
-
+    def get_permissions(self):
+        user = self.request.user
+        if user.is_staff:
+            return Package.objects.all()
+        return Package.objects.filter(storage_locker__user=user)

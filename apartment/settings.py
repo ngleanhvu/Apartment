@@ -41,7 +41,15 @@ INSTALLED_APPS = [
     'ckeditor',
     'ckeditor_uploader',
     'drf_yasg',
+    'oauth2_provider'
 ]
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES' : (
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+    )
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -141,4 +149,5 @@ cloudinary.config(
     api_secret="lOmmfYvysmFHA1lgmPZRg0hUuZM",
     secure=True
 )
+
 

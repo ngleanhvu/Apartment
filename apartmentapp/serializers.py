@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from apartmentapp.models import User
+from apartmentapp.models import User, StorageLocker, Package
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -24,3 +25,17 @@ class UserSerializer(serializers.ModelSerializer):
         data['value'] = instance.thumbnail.url if instance.thumbnail else ''
 
         return data
+
+
+class PackageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Package
+        fields = ['sender_name', 'recipient_name', 'status', 'pickup_time', 'quantity_items', 'thumbnail']
+
+class StorageLockerSerializer(serializers.ModelSerializer):
+    packages = PackageSerializer(many=True)
+
+    class Meta:
+        model = StorageLocker
+        fields = ['number', 'packages']
+
