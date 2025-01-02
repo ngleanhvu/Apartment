@@ -31,8 +31,9 @@ class User(AbstractUser):
     date_of_birth = models.DateTimeField(auto_now=False, null=True)
     gender = models.BooleanField(default=True)
     citizen_card = models.CharField(max_length=15, null=False, unique=True)
-    thumbnail = CloudinaryField(null=True)
+    thumbnail = CloudinaryField(null=True, blank=True)
     changed_password = models.BooleanField(default=False)
+    room = models.ForeignKey('Room', on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         return self.full_name
@@ -52,9 +53,8 @@ class Room(BaseModel):
     status = models.CharField(
         max_length=20,
         choices=RoomStatus.choices(),
-        default=RoomStatus.AVAILABLE
+        default=RoomStatus.AVAILABLE.value
     )
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
     unit_price = models.FloatField(default=0)
 
     def __str__(self):
@@ -67,7 +67,7 @@ class VehicleCard(BaseModel):
     relationship = models.CharField(
         max_length=30,
         choices=Relationship.choices(),
-        default=Relationship.APARTMENT_OWNER
+        default=Relationship.APARTMENT_OWNER.value
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
@@ -100,7 +100,7 @@ class Package(BaseModel):
     status = models.CharField(
         max_length=20,
         choices=PackageStatus.choices(),
-        default=PackageStatus.NOT_RECEIVED
+        default=PackageStatus.NOT_RECEIVED.value
     )
     pickup_time = models.DateTimeField(null=True)
     quantity_items = models.IntegerField(default=1)
@@ -126,7 +126,7 @@ class Reflection(BaseModel):
     status = models.CharField(
         max_length=20,
         choices=ReflectionStatus.choices(),
-        default=ReflectionStatus.APPROVING
+        default=ReflectionStatus.APPROVING.value
     )
     resolution = models.CharField(max_length=255, null=True, blank=True)
     resolved_date = models.DateTimeField(null=True)
@@ -150,7 +150,7 @@ class CommonNotification(BaseModel):
     delivery_method = models.CharField(
         max_length=20,
         choices=DeliveryMethod.choices(),
-        default=DeliveryMethod.APP
+        default=DeliveryMethod.APP.value
     )
 
     def __str__(self):
@@ -177,29 +177,6 @@ class TransactionStatus(Enum):
     def choices(cls):
         return [(x.value, x.name) for x in cls]
 
-class Transaction(BaseModel):
-    amount = models.FloatField(default=0)
-    description = models.CharField(max_length=100)
-    payment_gateway = models.CharField(
-        max_length=20,
-        choices=PaymentGateway.choices(),
-        default=PaymentGateway.TRANSFER
-    )
-    thumbnail = CloudinaryField(null=True)
-    status = models.CharField(
-        max_length=20,
-        choices=TransactionStatus.choices(),
-        default=TransactionStatus.PENDING.value
-    )
-
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True)
-
-    monthly_fees = models.ManyToManyField('MonthlyFee', through='TransactionMonthlyFee', related_name='transactions')
-
-    def __str__(self):
-        return self.amount
-
 class Fee(BaseModel):
     name = models.CharField(max_length=50)
     description = models.CharField(max_length=100)
@@ -220,21 +197,23 @@ class MonthlyFee(BaseModel):
     status = models.CharField(
         max_length=20,
         choices=MonthlyFeeStatus.choices(),
-        default=MonthlyFeeStatus.PENDING
+        default=MonthlyFeeStatus.PENDING.value
     )
+    payment_gateway = models.CharField(
+        max_length=20,
+        choices=PaymentGateway.choices(),
+        default=PaymentGateway.MOMO.value
+    )
+    description = models.CharField(max_length=255)
+    thumbnail = CloudinaryField(null=True, blank=True)
     room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True)
     fee = models.ForeignKey(Fee, on_delete=models.SET_NULL, null=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
-        unique_together = ('room', 'fee', 'created_date')
+        unique_together = ('room', 'fee', 'created_date', 'status', 'user')
 
-class TransactionMonthlyFee(BaseModel):
-    amount = models.FloatField(default=0)
-    monthly_fee = models.ForeignKey(MonthlyFee, on_delete=models.SET_NULL, null=True)
-    transaction = models.ForeignKey(Transaction, on_delete=models.SET_NULL, null=True)
 
-    class Meta:
-        unique_together = ('monthly_fee', 'transaction')
 
 
 

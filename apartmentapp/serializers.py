@@ -1,11 +1,11 @@
 from rest_framework import serializers
-from apartmentapp.models import User, Fee, MonthlyFee, TransactionMonthlyFee, Transaction
+from apartmentapp.models import User, Fee, MonthlyFee, Room
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email', 'phone', 'password', 'full_name', 'thumbnail', 'citizen_card', 'gender']
+        fields = ['id', 'email', 'phone', 'password', 'full_name', 'thumbnail', 'citizen_card', 'gender', 'is_active']
         extra_kwargs = {
             'password': {
                 'write_only': True
@@ -29,15 +29,15 @@ class UserSerializer(serializers.ModelSerializer):
 class MonthlyFeeSerializer(serializers.ModelSerializer):
     class Meta:
         model = MonthlyFee
-        fields = ['id', 'amount', 'fee', 'user', 'created_date', 'status']
+        fields = '__all__'
 
 class FeeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Fee
         fields = ['id', 'name', 'description']
 
-class TransactionSerializer(serializers.ModelSerializer):
+class RoomSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Transaction
-        fields = ['id', 'amount', 'created_date', 'status', 'user', 'room', 'payment_gateway', 'description', 'thumbnail']
+        model = Room
+        fields = ['id', 'room_number', 'active']
 

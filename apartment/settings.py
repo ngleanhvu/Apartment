@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 
+from django.conf.global_settings import INTERNAL_IPS
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -41,7 +43,15 @@ INSTALLED_APPS = [
     'ckeditor',
     'ckeditor_uploader',
     'drf_yasg',
+    'oauth2_provider',
+    'corsheaders'
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+    )
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -51,7 +61,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware'
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'apartment.urls'
 
@@ -142,3 +156,9 @@ cloudinary.config(
     secure=True
 )
 
+OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore' }
+
+
+# Stripe
+STRIPE_TEST_SECRET_KEY = 'sk_test_51QVllgLGRlPpjKfjbEEn7dEVvjYxYgwsUigFw7vBqjfcFnGWSNXJYBihEGEb1Krw08HyRzHVn5Ja3joFMb3oNf6t007VdyyRUh'
+STRIPE_TEST_PUBLIC_KEY = 'pk_test_51QVllgLGRlPpjKfjb0kJx1duZJodKVhBPgUrlEqAWHSweobrx0xToWMeFmfwbfMQ72QOzSOTnDyqjR5Fq6XODa1H007P3RGFcj'
