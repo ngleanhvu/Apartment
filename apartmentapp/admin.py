@@ -12,7 +12,9 @@ from apartmentapp.models import Reflection, User, MonthlyFee, Fee, Room
 class ApartmentAdminSite(admin.AdminSite):
     site_header = 'Apartment Management'
 
+
 admin_site = ApartmentAdminSite('myapartment')
+
 
 class ReflectionForm(forms.ModelForm):
     content = forms.CharField(widget=CKEditorUploadingWidget)
@@ -21,11 +23,13 @@ class ReflectionForm(forms.ModelForm):
         model = Reflection
         fields = '__all__'
 
+
 class ReflectionAdmin(admin.ModelAdmin):
     form = ReflectionForm
     list_display = ['title', 'content', 'resolution']
     search_fields = ['title', 'resolved_date']
     list_filter = ['user__full_name']
+
 
 class UserAdmin(admin.ModelAdmin):
     readonly_fields = ['avatar']
@@ -41,13 +45,17 @@ class UserAdmin(admin.ModelAdmin):
             obj.set_password(form.cleaned_data['password'])
         super().save_model(request, obj, form, change)
 
+
 class FeeAdmin(admin.ModelAdmin):
     list_display = ['name', 'description']
+
 
 class MonthlyFeeAdmin(admin.ModelAdmin):
     list_display = ['amount', 'status', 'room', 'fee']
     list_filter = ['status', 'room__room_number', 'fee__name', 'created_date']
     search_fields = ['status', 'created_date', 'room__room_number', 'fee__name']
+    readonly_fields = ['transaction']
+
 
 class RoomAdmin(admin.ModelAdmin):
     list_display = ['room_number', 'status']
@@ -57,6 +65,7 @@ class RoomAdmin(admin.ModelAdmin):
             'validators': []
         }
     }
+
 
 admin_site.register(Reflection, ReflectionAdmin)
 admin_site.register(User, UserAdmin)

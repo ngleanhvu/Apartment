@@ -9,14 +9,15 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
-
+import hashlib
+import hmac
+import uuid
 from pathlib import Path
 
 from django.conf.global_settings import INTERNAL_IPS
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -27,8 +28,7 @@ SECRET_KEY = 'django-insecure-!rbys3%m8k5bvdyuqwn8x%^%-n!@h3#hf^lpc0g(p2alcms&75
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'ba41-14-186-134-185.ngrok-free.app']
 
 # Application definition
 
@@ -87,7 +87,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'apartment.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
@@ -120,7 +119,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
@@ -132,7 +130,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
@@ -140,7 +137,7 @@ STATIC_URL = 'static/'
 
 MEDIA_ROOT = '%s/apartmentapp/static/' % BASE_DIR
 
-CKEDITOR_UPLOAD_PATH ='upload_ckeditor_dir/'
+CKEDITOR_UPLOAD_PATH = 'upload_ckeditor_dir/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -156,9 +153,21 @@ cloudinary.config(
     secure=True
 )
 
-OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore' }
-
+OAUTH2_PROVIDER = {'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore'}
 
 # Stripe
 STRIPE_TEST_SECRET_KEY = 'sk_test_51QVllgLGRlPpjKfjbEEn7dEVvjYxYgwsUigFw7vBqjfcFnGWSNXJYBihEGEb1Krw08HyRzHVn5Ja3joFMb3oNf6t007VdyyRUh'
 STRIPE_TEST_PUBLIC_KEY = 'pk_test_51QVllgLGRlPpjKfjb0kJx1duZJodKVhBPgUrlEqAWHSweobrx0xToWMeFmfwbfMQ72QOzSOTnDyqjR5Fq6XODa1H007P3RGFcj'
+STRIPE_TEST_ENDPOINT_SECRET = 'whsec_SlMnWE5i83YxE1DOGXnHQDIFGzX9kBm8'
+
+# Momo
+# parameters send to MoMo get get payUrl
+MOMO_END_POINT = "https://test-payment.momo.vn/v2/gateway/api/create"
+MOMO_PATTERN_CODE = "MOMO"
+MOMO_ACCESS_KEY = "F8BBA842ECF85"
+MOMO_SECRET_KEY = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
+MOMO_RETURN_URL = "http://127.0.0.1:8000/success/"
+MOMO_NOTIFY_URL = "http://127.0.0.1:8000/api/payment/webhook/momo/"
+MOMO_REQUEST_TYPE = "captureWallet"
+MOMO_REDIRECT_URL = 'https://www.facebook.com/'
+MOMO_IPN_URL = 'https://ba41-14-186-134-185.ngrok-free.app/transactions/webhook/momo/'

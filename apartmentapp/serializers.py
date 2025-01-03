@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apartmentapp.models import User, Fee, MonthlyFee, Room
+from apartmentapp.models import User, Fee, MonthlyFee, Room, Transaction
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -15,7 +15,7 @@ class UserSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         data = validated_data.copy()
         u = User(**data)
-        u.set_password(u.password) # hash password
+        u.set_password(u.password)  # hash password
         u.save()
 
         return u
@@ -26,18 +26,26 @@ class UserSerializer(serializers.ModelSerializer):
 
         return data
 
+
 class MonthlyFeeSerializer(serializers.ModelSerializer):
     class Meta:
         model = MonthlyFee
         fields = '__all__'
+
 
 class FeeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Fee
         fields = ['id', 'name', 'description']
 
+
 class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
         fields = ['id', 'room_number', 'active']
 
+
+class TransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = '__all__'

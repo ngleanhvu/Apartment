@@ -1,11 +1,10 @@
-from contextlib import nullcontext
 from datetime import datetime, timedelta
-
 from ckeditor.fields import RichTextField
 from cloudinary.models import CloudinaryField
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from enum import Enum
+
 
 # Create your models here
 
@@ -17,6 +16,7 @@ class BaseModel(models.Model):
     class Meta:
         abstract = True
 
+
 class Relationship(Enum):
     APARTMENT_OWNER = 'Apartment owner'
     RELATIVE = 'Relative'
@@ -24,6 +24,7 @@ class Relationship(Enum):
     @classmethod
     def choices(cls):
         return [(x.value, x.name) for x in cls]
+
 
 class User(AbstractUser):
     full_name = models.CharField(max_length=100, null=False)
@@ -38,6 +39,7 @@ class User(AbstractUser):
     def __str__(self):
         return self.full_name
 
+
 class RoomStatus(Enum):
     AVAILABLE = 'Available'
     OCCUPIED = 'Occupied'
@@ -45,6 +47,7 @@ class RoomStatus(Enum):
     @classmethod
     def choices(cls):
         return [(x.value, x.name) for x in cls]
+
 
 class Room(BaseModel):
     room_number = models.CharField(max_length=20, null=False, unique=True)
@@ -59,6 +62,7 @@ class Room(BaseModel):
 
     def __str__(self):
         return self.room_number
+
 
 class VehicleCard(BaseModel):
     full_name = models.CharField(max_length=100, null=False, default='')
@@ -79,12 +83,14 @@ class VehicleCard(BaseModel):
     def __str__(self):
         return self.vehicle_number
 
+
 class StorageLocker(BaseModel):
     number = models.CharField(max_length=50)
     user = models.OneToOneField(User, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.number
+
 
 class PackageStatus(Enum):
     NOT_RECEIVED = 'Not received'
@@ -93,6 +99,7 @@ class PackageStatus(Enum):
     @classmethod
     def choices(cls):
         return [(x.value, x.name) for x in cls]
+
 
 class Package(BaseModel):
     sender_name = models.CharField(max_length=50)
@@ -111,6 +118,7 @@ class Package(BaseModel):
     def __str__(self):
         return self.description
 
+
 class ReflectionStatus(Enum):
     APPROVED = 'Approved'
     SOLVED = 'Solved'
@@ -119,6 +127,7 @@ class ReflectionStatus(Enum):
     @classmethod
     def choices(cls):
         return [(x.value, x.name) for x in cls]
+
 
 class Reflection(BaseModel):
     title = models.CharField(max_length=100)
@@ -136,6 +145,7 @@ class Reflection(BaseModel):
     def __str__(self):
         return self.title
 
+
 class DeliveryMethod(Enum):
     APP = 'App'
     SMS = 'SMS'
@@ -143,6 +153,7 @@ class DeliveryMethod(Enum):
     @classmethod
     def choices(cls):
         return [(x.value, x.name) for x in cls]
+
 
 class CommonNotification(BaseModel):
     title = models.CharField(max_length=100)
@@ -156,8 +167,10 @@ class CommonNotification(BaseModel):
     def __str__(self):
         return self.title
 
+
 class PrivateNotification(CommonNotification):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+
 
 class PaymentGateway(Enum):
     TRANSFER = 'Transfer'
@@ -168,6 +181,7 @@ class PaymentGateway(Enum):
     def choices(cls):
         return [(x.value, x.name) for x in cls]
 
+
 class TransactionStatus(Enum):
     PENDING = 'Pending'
     SUCCESS = 'Success'
@@ -177,12 +191,14 @@ class TransactionStatus(Enum):
     def choices(cls):
         return [(x.value, x.name) for x in cls]
 
+
 class Fee(BaseModel):
     name = models.CharField(max_length=50)
     description = models.CharField(max_length=100)
 
     def __str__(self):
         return self.name
+
 
 class MonthlyFeeStatus(Enum):
     PENDING = 'Pending'
@@ -192,6 +208,7 @@ class MonthlyFeeStatus(Enum):
     def choices(cls):
         return [(x.value, x.name) for x in cls]
 
+
 class MonthlyFee(BaseModel):
     amount = models.FloatField(default=0)
     status = models.CharField(
@@ -199,6 +216,16 @@ class MonthlyFee(BaseModel):
         choices=MonthlyFeeStatus.choices(),
         default=MonthlyFeeStatus.PENDING.value
     )
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True)
+    fee = models.ForeignKey(Fee, on_delete=models.SET_NULL, null=True)
+    transaction = models.ForeignKey('Transaction', on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        unique_together = ('room', 'fee', 'created_date', 'status', 'transaction')
+
+
+class Transaction(BaseModel):
+    amount = models.FloatField(default=0)
     payment_gateway = models.CharField(
         max_length=20,
         choices=PaymentGateway.choices(),
@@ -206,22 +233,12 @@ class MonthlyFee(BaseModel):
     )
     description = models.CharField(max_length=255)
     thumbnail = CloudinaryField(null=True, blank=True)
-    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True)
-    fee = models.ForeignKey(Fee, on_delete=models.SET_NULL, null=True)
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=TransactionStatus.choices(),
+        default=TransactionStatus.PENDING.value
+    )
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
-    class Meta:
-        unique_together = ('room', 'fee', 'created_date', 'status', 'user')
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def __str__(self):
+        return self.user.full_name
