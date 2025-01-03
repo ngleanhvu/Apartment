@@ -6,6 +6,7 @@ from . import views
 r = DefaultRouter()
 r.register('users', views.UserViewSet, basename='users')
 r.register('storagelockers', views.StorageLockerViewSet, 'storagelockers')
+r.register('packages', views.PackageViewSet, 'packages')
 
 
 urlpatterns = [

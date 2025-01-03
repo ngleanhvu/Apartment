@@ -25,6 +25,11 @@ SECRET_KEY = 'django-insecure-!rbys3%m8k5bvdyuqwn8x%^%-n!@h3#hf^lpc0g(p2alcms&75
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+TWILIO_ACCOUNT_SID = 'ACd74232b8cde1891d0bccbe580708cc08'
+TWILIO_AUTH_TOKEN = '077a939148d677c3f3963c548d517989'
+TWILIO_PHONE_NUMBER = '+12299220537'
+
+
 ALLOWED_HOSTS = []
 
 
@@ -41,7 +46,8 @@ INSTALLED_APPS = [
     'ckeditor',
     'ckeditor_uploader',
     'drf_yasg',
-    'oauth2_provider'
+    'oauth2_provider',
+    'twilio'
 ]
 
 

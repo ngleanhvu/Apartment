@@ -99,7 +99,7 @@ class Package(BaseModel):
     status = models.CharField(
         max_length=20,
         choices=PackageStatus.choices(),
-        default=PackageStatus.NOT_RECEIVED
+        default=PackageStatus.NOT_RECEIVED.value
     )
     pickup_time = models.DateTimeField(null=True, blank=True)
     quantity_items = models.IntegerField(default=1)
