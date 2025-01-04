@@ -3,25 +3,35 @@ import hashlib
 import hmac
 import json
 import uuid
+from math import expm1
+from pickle import FALSE
+
 import requests
 import stripe
 from cloudinary.uploader import upload_image, upload
+from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, status, generics, permissions
 from rest_framework.decorators import action, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
+from rest_framework.viewsets import ViewSet
 
 from apartment import settings
 from apartmentapp import serializers
-from apartmentapp.models import User, MonthlyFee, Room, Transaction, MonthlyFeeStatus, PaymentGateway, TransactionStatus
+from apartmentapp.models import User, MonthlyFee, Room, Transaction, MonthlyFeeStatus, PaymentGateway, \
+    TransactionStatus, Fee, VehicleCard, Relationship
 from cloudinary.exceptions import Error as CloudinaryError
+
+from apartmentapp.permissions import MonthlyFeePerms
+from apartmentapp.serializers import MonthlyFeeSerializer, FeeSerializer
 
 stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
 
 
 # Create your views here.
 
+# Request 1
 class UserViewSet(viewsets.ViewSet,
                   generics.RetrieveAPIView):
     queryset = User.objects.filter(is_active=True)
@@ -70,7 +80,7 @@ class RoomViewSet(viewsets.ModelViewSet):
     queryset = Room.objects.filter(active=True)
     serializers = serializers.RoomSerializer
 
-
+# Request 2
 class TransactionViewSet(viewsets.ViewSet,
                          generics.UpdateAPIView,
                          generics.RetrieveAPIView):
@@ -84,6 +94,7 @@ class TransactionViewSet(viewsets.ViewSet,
         try:
 
             monthly_fees = MonthlyFee.objects.filter(room=request.user.room, status=MonthlyFeeStatus.PENDING.value)
+
 
             if not monthly_fees.exists():
                 return Response({'msg': 'No monthly fee need to pay'})
@@ -302,3 +313,83 @@ class TransactionViewSet(viewsets.ViewSet,
                 return Response({'error': 'Payment fail'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as ex:
             return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# Request 3
+class MonthlyFeeViewSet(ViewSet):
+
+    permission_classes = [MonthlyFeePerms]
+
+    def list(self, request, fee_id=None):
+        user = request.user
+        queryset = MonthlyFee.objects.filter(
+            transaction__user_id = user.id,
+            fee_id = fee_id
+        ).select_related('fee')
+
+        serializers = MonthlyFeeSerializer(queryset, many=True)
+
+        return Response({'monthly_fees': serializers.data})
+
+# Request 4
+class VehicleCardViewSet(viewsets.ViewSet,
+                         generics.ListAPIView):
+    model = VehicleCard
+    serializer_class = serializers.VehicleCardSerializer
+    queryset = VehicleCard.objects.filter(active=True)
+
+    def get_permissions(self):
+        if self.action.__eq__('list'):
+            return [IsAdminUser(), IsAuthenticated()]
+
+        return [IsAuthenticated()]
+
+
+    @action(methods=['post'], detail=False, url_path='register')
+    def register(self, request):
+        try:
+            user = request.user
+            data = request.data
+
+            full_name = data.get('full_name')
+            citizen_card = data.get('citizen_card')
+            vehicle_number = data.get('vehicle_number')
+
+            v = VehicleCard(full_name=full_name,
+                            citizen_card=citizen_card,
+                            vehicle_number=vehicle_number,
+                            user=user)
+
+            if not user.citizen_card.__eq__(citizen_card):
+                v.relationship = Relationship.RELATIVE.value
+
+            v.save()
+
+            return Response({'vehicle_card': serializers.VehicleCardSerializer(v).data},
+                            status=status.HTTP_201_CREATED)
+        except Exception as ex:
+            return Response({'error': str(ex)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(methods=['get'], detail=False, url_path='users')
+    def get_by_user(self, request):
+        try:
+
+            user = request.user
+            vehicle_cards = VehicleCard.objects.filter(user=user).all()
+
+            return Response({'vehicle_cards': serializers.VehicleCardSerializer(vehicle_cards, many=True).data},
+                            status=status.HTTP_200_OK)
+
+        except Exception as ex:
+            return Response({'error': str(ex)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+
+
+
+

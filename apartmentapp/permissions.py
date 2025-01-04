@@ -18,3 +18,7 @@ class TransactionPerms(permissions.IsAuthenticated):
     # Kiem tra user co thuoc phong do khong va user hien tai dang con o trong chung cu hay khong
     def has_object_permission(self, request, view, obj):
         return super().has_permission(request, view) and obj.room == request.user.room
+
+class MonthlyFeePerms(permissions.IsAuthenticated):
+    def has_object_permission(self, request, view, obj):
+        return super().has_permission(request, view) and obj.room == request.user.room

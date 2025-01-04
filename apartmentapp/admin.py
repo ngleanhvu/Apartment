@@ -4,7 +4,7 @@ from django.contrib import admin
 from django import forms
 from django.utils.safestring import mark_safe
 
-from apartmentapp.models import Reflection, User, MonthlyFee, Fee, Room
+from apartmentapp.models import Reflection, User, MonthlyFee, Fee, Room, VehicleCard
 
 
 # Register your models here.
@@ -66,9 +66,13 @@ class RoomAdmin(admin.ModelAdmin):
         }
     }
 
+class VehicleCardAdmin(admin.ModelAdmin):
+    list_display = ['vehicle_number', 'user']
+    readonly_fields = ['vehicle_number', 'user']
 
 admin_site.register(Reflection, ReflectionAdmin)
 admin_site.register(User, UserAdmin)
 admin_site.register(MonthlyFee, MonthlyFeeAdmin)
 admin_site.register(Fee, FeeAdmin)
 admin_site.register(Room, RoomAdmin)
+admin_site.register(VehicleCard, VehicleCardAdmin)

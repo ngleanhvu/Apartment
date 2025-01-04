@@ -1,9 +1,12 @@
 from datetime import datetime, timedelta
 from ckeditor.fields import RichTextField
 from cloudinary.models import CloudinaryField
+from dateutil.relativedelta import relativedelta
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from enum import Enum
+
+from django.db.models import CharField
 
 
 # Create your models here
@@ -65,20 +68,18 @@ class Room(BaseModel):
 
 
 class VehicleCard(BaseModel):
-    full_name = models.CharField(max_length=100, null=False, default='')
-    expiration_date = models.DateTimeField()
     vehicle_number = models.CharField(max_length=20, null=False, unique=True)
     relationship = models.CharField(
-        max_length=30,
+        max_length=20,
         choices=Relationship.choices(),
         default=Relationship.APARTMENT_OWNER.value
     )
+    full_name = models.CharField(null=False, max_length=50)
+    citizen_card = models.CharField(null=False, max_length=30, unique=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    def save(self, *args, **kwargs):
-        if not self.expiration_date:
-            self.expiration_date = self.created_date + timedelta(days=365 * 3)
-        super().save(*args, **kwargs)
+    class Meta:
+        unique_together = ('vehicle_number', 'citizen_card', 'active', 'user')
 
     def __str__(self):
         return self.vehicle_number

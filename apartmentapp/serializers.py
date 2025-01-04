@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apartmentapp.models import User, Fee, MonthlyFee, Room, Transaction
+from apartmentapp.models import User, Fee, MonthlyFee, Room, Transaction, VehicleCard
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -49,3 +49,9 @@ class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = '__all__'
+
+class VehicleCardSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VehicleCard
+        fields = '__all__'
+
