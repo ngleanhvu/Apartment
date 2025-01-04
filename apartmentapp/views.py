@@ -42,12 +42,12 @@ class UserViewSet(viewsets.ViewSet,
     @action(methods=['put'], detail=False, url_path='active-user')
     def active_user(self, request):
         # Lay du lieu tu request
-        phone = request.data.get('phone')
+        username = request.data.get('username')
         password = request.data.get('password')
         retype_password = request.data.get('retype_password')
         thumbnail = request.FILES.get('thumbnail')
 
-        if not phone or not password or not retype_password or not thumbnail:
+        if not username or not password or not retype_password or not thumbnail:
             return Response({'error': 'Phone or password or thumbnail is required'},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -56,7 +56,7 @@ class UserViewSet(viewsets.ViewSet,
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         try:
-            user = User.objects.filter(phone=phone).first()
+            user = User.objects.filter(username=username).first()
 
             try:
                 upload_result = upload(thumbnail)
@@ -74,7 +74,6 @@ class UserViewSet(viewsets.ViewSet,
 
         except:
             return Response({'error', 'User not found'}, status=status.HTTP_404_NOT_FOUND)
-
 
 class RoomViewSet(viewsets.ModelViewSet):
     queryset = Room.objects.filter(active=True)
