@@ -6,6 +6,9 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from enum import Enum
 
+from django.db.models import ForeignKey
+
+
 # Create your models here
 
 class BaseModel(models.Model):
@@ -32,6 +35,7 @@ class User(AbstractUser):
     citizen_card = models.CharField(max_length=15, null=False, unique=True)
     thumbnail = CloudinaryField(null=True)
     changed_password = models.BooleanField(default=False)
+
     #room = models.ForeignKey('Room', on_delete=models.CASCADE, null=True)
 
     def __str__(self):
@@ -80,7 +84,7 @@ class VehicleCard(BaseModel):
 
 class StorageLocker(BaseModel):
     number = models.CharField(max_length=50)
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='storage_locker')
 
     def __str__(self):
         return self.number
@@ -202,6 +206,31 @@ class TransactionFee(BaseModel):
     class Meta:
         unique_together = ('fee', 'transaction')
 
+class FeedbackStatus(Enum):
+    IN_PROGRESS= 'In progress'
+    RESOLVED= 'Resolved'
+
+    @classmethod
+    def choices(cls):
+        return [(x.value, x.name) for x in cls]
+
+class Feedback(BaseModel):
+    title=models.CharField(max_length=200)
+    description=RichTextField()
+    status = models.CharField(max_length=20,
+                              choices=FeedbackStatus.choices(),
+                              default=FeedbackStatus.IN_PROGRESS.value)
+
+    resident=models.ForeignKey(User, on_delete=models.CASCADE, related_name='feedbacks')
+
+    def __str__(self):
+        return self.title
+
+class FeedbackResponse(BaseModel):
+    response=RichTextField()
+
+    admin=models.ForeignKey(User, on_delete=models.PROTECT)
+    feedback=models.OneToOneField(Feedback, on_delete=models.CASCADE,  related_name='response')
 
 
 

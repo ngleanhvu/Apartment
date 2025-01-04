@@ -4,7 +4,7 @@ from django.contrib import admin
 from django import forms
 from django.utils.safestring import mark_safe
 
-from apartmentapp.models import Reflection, User, StorageLocker, Package
+from apartmentapp.models import Reflection, User, StorageLocker, Package, Feedback, FeedbackResponse
 
 
 # Register your models here.
@@ -75,7 +75,20 @@ class PackageAdmin(admin.ModelAdmin):
         return "No image"
     display_thumbnail.short_description = 'Thumbnail'
 
+class FeedbackAdmin(admin.ModelAdmin):
+    list_display = ['title', 'description', 'status', 'resident']
+    search_fields = ['resident__phone', 'status']
+    filter = ['created_date']
+
+class FeedbackResponseAdmin(admin.ModelAdmin):
+    list_display = ['feedback', 'response', 'admin']
+    search_fields = ['feedback__resident__phone']
+    filter=['created_date']
+
+
 admin_site.register(Reflection, ReflectionAdmin)
 admin_site.register(User)
 admin_site.register(StorageLocker, StorageLockerAdmin)
 admin_site.register(Package, PackageAdmin)
+admin_site.register(Feedback, FeedbackAdmin)
+admin_site.register(FeedbackResponse, FeedbackResponseAdmin)
