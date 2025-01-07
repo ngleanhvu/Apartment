@@ -5,7 +5,7 @@ from apartmentapp.models import User, Fee, MonthlyFee, Room, Transaction, Vehicl
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email', 'phone', 'password', 'full_name', 'thumbnail', 'citizen_card', 'gender', 'is_active']
+        fields = ['id', 'email', 'phone', 'username', 'changed_password', 'password', 'full_name', 'thumbnail', 'citizen_card', 'gender', 'is_active']
         extra_kwargs = {
             'password': {
                 'write_only': True

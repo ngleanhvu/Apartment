@@ -36,16 +36,21 @@ class UserViewSet(viewsets.ViewSet,
                   generics.RetrieveAPIView):
     queryset = User.objects.filter(is_active=True)
     serializer_class = serializers.UserSerializer
-    permission_classes = [IsAuthenticated]
+
+    @action(methods=['get'], detail=False, url_path='current-user',  permission_classes = [IsAuthenticated])
+    def current_user(self, request):
+        return Response(serializers.UserSerializer(request.user).data, status=status.HTTP_200_OK)
 
     # API active user
-    @action(methods=['put'], detail=False, url_path='active-user')
+    @action(methods=['post'], detail=False, url_path='active-user')
     def active_user(self, request):
         # Lay du lieu tu request
-        username = request.data.get('username')
+        username = request.data.get('phone')
         password = request.data.get('password')
         retype_password = request.data.get('retype_password')
-        thumbnail = request.FILES.get('thumbnail')
+        thumbnail = request.FILES.get('avatar')
+
+        print(username, password, retype_password, thumbnail)
 
         if not username or not password or not retype_password or not thumbnail:
             return Response({'error': 'Phone or password or thumbnail is required'},
@@ -56,7 +61,11 @@ class UserViewSet(viewsets.ViewSet,
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         try:
-            user = User.objects.filter(username=username).first()
+            user = User.objects.filter(phone=username).first()
+
+            if user.changed_password:
+                return Response({'msg': 'Người dùng đã kích hoạt tài khoản trước đó'},
+                                status=status.HTTP_202_ACCEPTED)
 
             try:
                 upload_result = upload(thumbnail)

@@ -196,6 +196,7 @@ class TransactionStatus(Enum):
 class Fee(BaseModel):
     name = models.CharField(max_length=50)
     description = models.CharField(max_length=100)
+    value = models.FloatField(default=0)
 
     def __str__(self):
         return self.name

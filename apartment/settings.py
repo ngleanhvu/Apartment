@@ -135,8 +135,6 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-MEDIA_ROOT = '%s/apartmentapp/static/' % BASE_DIR
-
 CKEDITOR_UPLOAD_PATH = 'upload_ckeditor_dir/'
 
 # Default primary key field type
