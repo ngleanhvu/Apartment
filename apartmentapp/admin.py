@@ -23,7 +23,7 @@ def lock_user(modeladmin, request, queryset):
             if room.status == RoomStatus.AVAILABLE.value:
                 modeladmin.message_user(request, f"Lock user in {room.room_number} fail!.", level="error")
             else:
-                User.objects.filter(room=room, is_active=True).update(is_active=False, room=None)
+                User.objects.filter(room=room, is_active=True).update(is_active=False, room=None, changed_password=False)
                 VehicleCard.objects.filter(user__room=room, user__is_active=False).update(active=False)
                 room.status = RoomStatus.AVAILABLE.value
                 room.save()
