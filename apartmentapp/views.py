@@ -5,6 +5,8 @@ import json
 import uuid
 from math import expm1
 from pickle import FALSE
+from timeit import default_timer
+from tokenize import maybe
 
 import requests
 import stripe
@@ -15,9 +17,11 @@ from rest_framework import viewsets, status, generics, permissions
 from rest_framework.decorators import action, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
+from rest_framework.status import HTTP_200_OK
 from rest_framework.viewsets import ViewSet
 
 from apartment import settings
+from apartment.settings import MOMO_END_POINT
 from apartmentapp import serializers
 from apartmentapp.models import User, MonthlyFee, Room, Transaction, MonthlyFeeStatus, PaymentGateway, \
     TransactionStatus, Fee, VehicleCard, Relationship
@@ -135,8 +139,8 @@ class TransactionViewSet(viewsets.ViewSet,
                 payment_method_types=['card'],
                 line_items=data,
                 mode='payment',
-                success_url='http://127.0.0.1:8000/success/',  # URL thành công
-                cancel_url='http://127.0.0.1:8000/cancel/',  # URL hủy bỏ
+                success_url=settings.STRIPE_TEST_SUCCESS_URL,  # URL thành công
+                cancel_url=settings.STRIPE_TEST_ERROR_URL,  # URL hủy bỏ
                 metadata={'transaction_id': transaction.id, 'user_id': request.user.id}
             )
 
@@ -199,9 +203,9 @@ class TransactionViewSet(viewsets.ViewSet,
             import hashlib
 
             # parameters send to MoMo get get payUrl
-            endpoint = "https://test-payment.momo.vn/v2/gateway/api/create"
-            accessKey = "F8BBA842ECF85"
-            secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
+            endpoint = settings.MOMO_END_POINT
+            accessKey = settings.MOMO_ACCESS_KEY
+            secretKey = settings.MOMO_SECRET_KEY
             orderInfo = "pay with MoMo"
             partnerCode = "MOMO"
             redirectUrl = settings.MOMO_REDIRECT_URL
@@ -248,9 +252,9 @@ class TransactionViewSet(viewsets.ViewSet,
                 'requestId': requestId,
                 'extraData': extraData,
                 'signature': signature,
-                'accessKey': 'F8BBA842ECF85',
+                'accessKey': accessKey,
                 'extractData': '',
-                'lang': 'vi'
+                'lang': lang
             }
 
             data = json.dumps(data)
@@ -336,7 +340,20 @@ class MonthlyFeeViewSet(ViewSet):
 
         serializers = MonthlyFeeSerializer(queryset, many=True)
 
-        return Response({'monthly_fees': serializers.data})
+        return Response(serializers.data, status=status.HTTP_200_OK)
+
+    @action(methods=['get'], detail=False, url_path='pending')
+    def list_monthly_fee_pending(self, request):
+        print('a')
+        queryset = MonthlyFee.objects.filter(
+            status=MonthlyFeeStatus.PENDING.value,
+            active=True,
+            room = request.user.room
+        )
+
+        print(queryset)
+
+        return Response(serializers.MonthlyFeeSerializer(queryset, many=True, context={'request': request}).data, status=status.HTTP_200_OK)
 
 # Request 4
 class VehicleCardViewSet(viewsets.ViewSet,
@@ -372,7 +389,7 @@ class VehicleCardViewSet(viewsets.ViewSet,
 
             v.save()
 
-            return Response({'vehicle_card': serializers.VehicleCardSerializer(v).data},
+            return Response({serializers.VehicleCardSerializer(v).data},
                             status=status.HTTP_201_CREATED)
         except Exception as ex:
             return Response({'error': str(ex)},

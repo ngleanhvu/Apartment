@@ -35,17 +35,21 @@ def lock_user(modeladmin, request, queryset):
 @admin.action(description="Tính phí dịch vụ hằng tháng cho tất cả các phòng")
 def calculate_service_fee(modeladmin, request, queryset):
     try:
-        fee = Fee.objects.filter(name=r"^Phí quản lý").first()
+        fee = Fee.objects.filter(name="Phí quản lý").first()
 
-        monthly_fees = [
-            MonthlyFee(room=room, fee=fee, amount=fee.value)
-            for room in queryset
-        ]
+        monthly_fees = []
+
+        for room in queryset:
+            if room.status == RoomStatus.AVAILABLE.value:
+                continue
+
+            monthly_fee = MonthlyFee(fee=fee, amount=fee.value, room=room)
+            monthly_fees.append(monthly_fee)
 
         MonthlyFee.objects.bulk_create(monthly_fees)
         modeladmin.message_user(request, 'Tính toán thành công', level="success")
     except Exception as ex:
-        modeladmin.message_user(request, 'Tính toán thất bại', level="error")
+        modeladmin.message_user(request, f"Error: {str(ex)}", level="error")
 
 @admin.action(description="Tính phí giữ xe hằng tháng cho tất cả các phòng")
 def calculate_parking_fee(modeladmin, request, queryset):

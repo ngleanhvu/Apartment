@@ -157,6 +157,8 @@ OAUTH2_PROVIDER = {'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSON
 STRIPE_TEST_SECRET_KEY = 'sk_test_51QVllgLGRlPpjKfjbEEn7dEVvjYxYgwsUigFw7vBqjfcFnGWSNXJYBihEGEb1Krw08HyRzHVn5Ja3joFMb3oNf6t007VdyyRUh'
 STRIPE_TEST_PUBLIC_KEY = 'pk_test_51QVllgLGRlPpjKfjb0kJx1duZJodKVhBPgUrlEqAWHSweobrx0xToWMeFmfwbfMQ72QOzSOTnDyqjR5Fq6XODa1H007P3RGFcj'
 STRIPE_TEST_ENDPOINT_SECRET = 'whsec_SlMnWE5i83YxE1DOGXnHQDIFGzX9kBm8'
+STRIPE_TEST_SUCCESS_URL = 'http://127.0.0.1:8000/success/'
+STRIPE_TEST_ERROR_URL = 'http://127.0.0.1:8000/cancel/'
 
 # Momo
 # parameters send to MoMo get get payUrl

@@ -26,17 +26,16 @@ class UserSerializer(serializers.ModelSerializer):
 
         return data
 
-
-class MonthlyFeeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MonthlyFee
-        fields = '__all__'
-
-
 class FeeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Fee
         fields = ['id', 'name', 'description']
+
+class MonthlyFeeSerializer(serializers.ModelSerializer):
+    fee = FeeSerializer(read_only=True)
+    class Meta:
+        model = MonthlyFee
+        fields = '__all__'
 
 
 class RoomSerializer(serializers.ModelSerializer):

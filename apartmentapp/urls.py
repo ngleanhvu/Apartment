@@ -12,5 +12,6 @@ r.register('transactions', views.TransactionViewSet, basename='transactions')
 r.register('vehicle-cards', views.VehicleCardViewSet, basename='vehicle-cards')
 urlpatterns = [
     path('', include(r.urls)),
-    path('monthly-fees/fees/<int:fee_id>/', MonthlyFeeViewSet.as_view({'get': 'list'}))
+    path('monthly-fees/fees/<int:fee_id>/', MonthlyFeeViewSet.as_view({'get': 'list'})),
+    path('monthly-fees/pending/', MonthlyFeeViewSet.as_view({'get': 'list_monthly_fee_pending'}))
 ]
