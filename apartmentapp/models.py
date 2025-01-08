@@ -1,12 +1,16 @@
 
 from datetime import datetime, timedelta
+from random import choice
+from tkinter.constants import CASCADE
+
+from aiohttp.web_urldispatcher import Resource
 from ckeditor.fields import RichTextField
 from cloudinary.models import CloudinaryField
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from enum import Enum
 
-from django.db.models import ForeignKey
+from django.db.models import ForeignKey, Model
 
 
 # Create your models here
@@ -206,6 +210,7 @@ class TransactionFee(BaseModel):
     class Meta:
         unique_together = ('fee', 'transaction')
 
+#FEEDBACK
 class FeedbackStatus(Enum):
     IN_PROGRESS= 'In progress'
     RESOLVED= 'Resolved'
@@ -231,6 +236,75 @@ class FeedbackResponse(BaseModel):
 
     admin=models.ForeignKey(User, on_delete=models.PROTECT)
     feedback=models.OneToOneField(Feedback, on_delete=models.CASCADE,  related_name='response')
+
+#SURVEY
+class SurveyStatusEnum(Enum):
+    PUBLISHED = 'Published'
+    CLOSED = 'Closed'
+
+    @classmethod
+    def choices(cls):
+        return [(x.value, x.name) for x in cls]
+
+class QuestionTypeEnum(Enum):
+    MULTIPLE_CHOICE='Multiple choice'
+    SINGLE_CHOICE='Single choice'
+    TEXT='Text'
+    YES_NO='Yes/No'
+
+    @classmethod
+    def choices(cls):
+        return [(x.value, x.name) for x in cls]
+
+class Survey(BaseModel):
+    title=models.CharField(max_length=200)
+    description=models.TextField()
+    start_date=models.DateTimeField()
+    end_date=models.DateTimeField()
+    status=models.CharField(max_length=20,
+                            choices=SurveyStatusEnum.choices(),
+                            default=SurveyStatusEnum.PUBLISHED.value)
+
+    created_by=models.ForeignKey(User, on_delete=models.PROTECT, related_name='surveys')
+
+    def __str__(self):
+        return self.title
+
+class Question(BaseModel):
+    content=models.TextField()
+    type=models.CharField(max_length=20, choices=QuestionTypeEnum.choices(),
+                          default=QuestionTypeEnum.MULTIPLE_CHOICE.value)
+    survey=models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='questions')
+
+    def __str__(self):
+        return self.content
+
+class QuestionOption(BaseModel): #For multiple choices and single choice
+    question=models.ForeignKey(Question, on_delete=models.CASCADE, related_name='options')
+    content=models.TextField()
+
+    def __str__(self):
+        return self.content
+
+class Response(BaseModel):
+    survey=models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='responses')
+    resident=models.ForeignKey(User, on_delete=models.PROTECT, related_name='survey_responses')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.resident.full_name}'s response to {self.survey.title}"
+
+class Answer(BaseModel):
+    text_answer=models.TextField(null=True, blank=True)
+    boolean_answer=models.BooleanField(null=True,blank=True)
+
+    selected_options=models.ManyToManyField(QuestionOption, related_name='answers', null=True, blank=True)
+    response=models.ForeignKey(Response, on_delete=models.CASCADE, related_name='answers')
+    question=models.ForeignKey(Question, on_delete=models.CASCADE, related_name='answers')
+
+    def __str__(self):
+        return f"Answer to {self.question.content}"
+
 
 
 

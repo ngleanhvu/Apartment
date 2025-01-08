@@ -4,7 +4,8 @@ from django.contrib import admin
 from django import forms
 from django.utils.safestring import mark_safe
 
-from apartmentapp.models import Reflection, User, StorageLocker, Package, Feedback, FeedbackResponse
+from apartmentapp.models import Reflection, User, StorageLocker, Package, Feedback, FeedbackResponse, Survey, Question, \
+    QuestionOption, Response, Answer, QuestionTypeEnum
 
 
 # Register your models here.
@@ -85,10 +86,61 @@ class FeedbackResponseAdmin(admin.ModelAdmin):
     search_fields = ['feedback__resident__phone']
     filter=['created_date']
 
+#Survey
+class QuestionInlineAdmin(admin.StackedInline):
+    model=Question
+    fk_name = 'survey'
+
+class QuestionOptionInlineAdmin(admin.StackedInline):
+    model = QuestionOption
+    fk_name = 'question'
+
+class SurveyAdmin(admin.ModelAdmin):
+    list_display = ['title', 'start_date', 'end_date', 'status', 'description']
+    search_fields = ['status', 'title']
+    list_filter =['start_date', 'status']
+    ordering = ['start_date', 'end_date']
+    inlines = (QuestionInlineAdmin, )
+
+class QuestionAdmin(admin.ModelAdmin):
+    list_display = ['content', 'type', 'survey']
+    search_fields = ['survey__title', 'type']
+    filter=['survey', 'type']
+    ordering = ['survey']
+    inlines = (QuestionOptionInlineAdmin, )
+
+class QuestionOptionAdmin(admin.ModelAdmin):
+    list_display = ['content', 'question']
+    search_fields = ['question']
+    filter=['question__survey']
+    ordering = ['question']
+
+
+class ResponseAdmin(admin.ModelAdmin):
+    list_display = ['survey', 'resident', 'submitted_at']
+    list_filter = ['submitted_at', 'survey']
+    search_fields = ['resident__full_name', 'survey__title']
+
+class AnswerAdmin(admin.ModelAdmin):
+    list_display = ['question', 'response', 'text_answer', 'boolean_answer', 'display_selected_options']
+    list_filter = ['question__survey', 'response__resident', 'question__type']
+    search_fields = ['question__content']
+
+    def display_selected_options(self, obj):
+        return ", ".join([str(option) for option in obj.selected_options.all()])
+    display_selected_options.short_description = 'Selected Options'
+
 
 admin_site.register(Reflection, ReflectionAdmin)
 admin_site.register(User)
 admin_site.register(StorageLocker, StorageLockerAdmin)
 admin_site.register(Package, PackageAdmin)
+#
 admin_site.register(Feedback, FeedbackAdmin)
 admin_site.register(FeedbackResponse, FeedbackResponseAdmin)
+#
+admin_site.register(Survey, SurveyAdmin)
+admin_site.register(Question, QuestionAdmin)
+admin_site.register(QuestionOption, QuestionOptionAdmin)
+admin_site.register(Response, ResponseAdmin)
+admin_site.register(Answer, AnswerAdmin)
