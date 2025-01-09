@@ -75,7 +75,7 @@ class VehicleCard(BaseModel):
         default=Relationship.APARTMENT_OWNER.value
     )
     full_name = models.CharField(null=False, max_length=50)
-    citizen_card = models.CharField(null=False, max_length=30, unique=True)
+    citizen_card = models.CharField(null=False, max_length=30)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     class Meta:

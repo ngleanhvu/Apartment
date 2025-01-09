@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-!rbys3%m8k5bvdyuqwn8x%^%-n!@h3#hf^lpc0g(p2alcms&75
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'ba41-14-186-134-185.ngrok-free.app']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '478a-14-186-144-166.ngrok-free.app']
 
 # Application definition
 
@@ -166,8 +166,8 @@ MOMO_END_POINT = "https://test-payment.momo.vn/v2/gateway/api/create"
 MOMO_PATTERN_CODE = "MOMO"
 MOMO_ACCESS_KEY = "F8BBA842ECF85"
 MOMO_SECRET_KEY = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
-MOMO_RETURN_URL = "http://127.0.0.1:8000/success/"
+MOMO_RETURN_URL = "apm://payment/success"
 MOMO_NOTIFY_URL = "http://127.0.0.1:8000/api/payment/webhook/momo/"
 MOMO_REQUEST_TYPE = "captureWallet"
-MOMO_REDIRECT_URL = 'https://www.facebook.com/'
-MOMO_IPN_URL = 'https://ba41-14-186-134-185.ngrok-free.app/transactions/webhook/momo/'
+MOMO_REDIRECT_URL = 'apm://payment/success'
+MOMO_IPN_URL = 'https://478a-14-186-144-166.ngrok-free.app/transactions/webhook/momo/'

@@ -1,34 +1,22 @@
 import base64
-import hashlib
-import hmac
 import json
-import uuid
-from math import expm1
-from pickle import FALSE
-from timeit import default_timer
-from tokenize import maybe
+from dbm.sqlite3 import error
 
-import requests
 import stripe
 from cloudinary.uploader import upload_image, upload
-from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, status, generics, permissions
 from rest_framework.decorators import action, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
-from rest_framework.status import HTTP_200_OK
 from rest_framework.viewsets import ViewSet
-
 from apartment import settings
-from apartment.settings import MOMO_END_POINT
-from apartmentapp import serializers
+from apartmentapp import serializers, paginations
 from apartmentapp.models import User, MonthlyFee, Room, Transaction, MonthlyFeeStatus, PaymentGateway, \
     TransactionStatus, Fee, VehicleCard, Relationship
 from cloudinary.exceptions import Error as CloudinaryError
-
 from apartmentapp.permissions import MonthlyFeePerms
-from apartmentapp.serializers import MonthlyFeeSerializer, FeeSerializer
+from apartmentapp.serializers import MonthlyFeeSerializer
 
 stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
 
@@ -135,17 +123,17 @@ class TransactionViewSet(viewsets.ViewSet,
                                                      payment_gateway=PaymentGateway.STRIPE.value,
                                                      status=TransactionStatus.PENDING.value)
 
-            checkout_session = stripe.checkout.Session.create(
-                payment_method_types=['card'],
-                line_items=data,
-                mode='payment',
-                success_url=settings.STRIPE_TEST_SUCCESS_URL,  # URL thành công
-                cancel_url=settings.STRIPE_TEST_ERROR_URL,  # URL hủy bỏ
+            payment_intent = stripe.PaymentIntent.create(
+                amount=int(total_amount * 100),  # Chuyển đổi sang cent
+                currency='vnd',
                 metadata={'transaction_id': transaction.id, 'user_id': request.user.id}
             )
 
-            return Response({"sessionId": checkout_session.id}, status=status.HTTP_200_OK)
+            # Trả về client_secret thay vì sessionId
+            return Response({"clientSecret": payment_intent.client_secret}, status=status.HTTP_200_OK)
+
         except Exception as ex:
+            print(ex)
             return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(methods=['post'], detail=False, url_path='webhook/stripe')
@@ -168,11 +156,12 @@ class TransactionViewSet(viewsets.ViewSet,
         user_id = session["metadata"].get("user_id")
         print(transaction_id, user_id)
         transaction = Transaction.objects.filter(id=transaction_id).first()
-
+        print(transaction)
+        print(event["type"])
         try:
-            if event["type"] == "checkout.session.completed":
+            if event["type"] == "payment_intent.succeeded":
                 user = User.objects.filter(id=user_id).first()
-
+                print(user)
                 (MonthlyFee.objects.filter(room=user.room, status=MonthlyFeeStatus.PENDING.value)
                  .update(status=MonthlyFeeStatus.PAID.value, transaction=transaction))
 
@@ -182,154 +171,49 @@ class TransactionViewSet(viewsets.ViewSet,
         except Exception as ex:
             transaction.status = TransactionStatus.FAIL.value
             transaction.save()
+            print(error)
             return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # Momo
     @action(methods=['post'], detail=False, url_path='momo', permission_classes=[IsAuthenticated])
     def create_payment_momo(self, request):
         try:
+            thumbnail = request.FILES.get('avatar')
             monthly_fees = MonthlyFee.objects.filter(room=request.user.room, status=MonthlyFeeStatus.PENDING.value)
 
             if not monthly_fees.exists():
                 return Response({'msg': 'No monthly fee need to pay'})
 
             total_amount = sum(fee.amount for fee in monthly_fees)
-            print(total_amount)
 
-            import json
-            import uuid
-            import requests
-            import hmac
-            import hashlib
-
-            # parameters send to MoMo get get payUrl
-            endpoint = settings.MOMO_END_POINT
-            accessKey = settings.MOMO_ACCESS_KEY
-            secretKey = settings.MOMO_SECRET_KEY
-            orderInfo = "pay with MoMo"
-            partnerCode = "MOMO"
-            redirectUrl = settings.MOMO_REDIRECT_URL
-            ipnUrl = settings.MOMO_IPN_URL
-            amount = str(int(total_amount))
-            orderId = str(uuid.uuid4())
-            requestId = str(uuid.uuid4())
-            extraData = ""  # pass empty value or Encode base64 JsonString
-            partnerName = "MoMo Payment"
-            requestType = "payWithMethod"
-            storeId = "Test Store"
-            orderGroupId = ""
-            autoCapture = True
-            lang = "vi"
-            orderGroupId = ""
-
-            transaction = Transaction.objects.create(amount=total_amount,
+            transaction = Transaction(amount=total_amount,
                                                      user=request.user,
                                                      description=f"Phí dịch vụ của phòng {request.user.room}",
                                                      payment_gateway=PaymentGateway.MOMO.value,
                                                      status=TransactionStatus.PENDING.value)
 
-            extra_data_str = f"transaction_id={transaction.id}"
-            extraData = base64.b64encode(extra_data_str.encode('utf-8')).decode('utf-8')
+            transaction.save()
 
-            rawSignature = "accessKey=" + accessKey + "&amount=" + amount + "&extraData=" + extraData + "&ipnUrl=" + ipnUrl + "&orderId=" + orderId \
-                           + "&orderInfo=" + orderInfo + "&partnerCode=" + partnerCode + "&redirectUrl=" + redirectUrl \
-                           + "&requestId=" + requestId + "&requestType=" + requestType
+            (MonthlyFee.objects.filter(room=request.user.room, status=MonthlyFeeStatus.PENDING.value)
+             .update(status=MonthlyFeeStatus.PAID.value, transaction=transaction))
 
-            h = hmac.new(bytes(secretKey, 'utf-8'), bytes(rawSignature, 'ascii'), hashlib.sha256)
-            signature = h.hexdigest()
-
-            print(signature)
-
-            data = {
-                'partnerCode': partnerCode,
-                'orderId': orderId,
-                'partnerName': partnerName,
-                'ipnUrl': ipnUrl,
-                'amount': amount,
-                'requestType': requestType,
-                'redirectUrl': redirectUrl,
-                'orderInfo': orderInfo,
-                'requestId': requestId,
-                'extraData': extraData,
-                'signature': signature,
-                'accessKey': accessKey,
-                'extractData': '',
-                'lang': lang
-            }
-
-            data = json.dumps(data)
-
-            clen = len(data)
-            response = requests.post(endpoint, data=data,
-                                     headers={'Content-Type': 'application/json', 'Content-Length': str(clen)})
-
-            print(response.json())
-            return Response({"payUrl": response.json()['payUrl']}, status=status.HTTP_200_OK)
-        except Exception as ex:
-            return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    @csrf_exempt
-    @action(methods=['post'], detail=False,  url_path='webhook/momo')
-    def momo_webhook(self, request):
-        payload = request.body.decode('utf-8')
-        print(payload)
-        try:
-            data = json.loads(payload)
-            print(data)
-
-            raw_signature = "&".join(
-                [f"{key}={data[key]}" for key in sorted(data) if
-                 key not in ["signature"]]
-            )
-
-            print(raw_signature)
-
-            encoded_extra_data = data['extraData']
-            print(encoded_extra_data)
-            decoded_extra_data = base64.b64decode(encoded_extra_data).decode('utf-8')
-            print(decoded_extra_data)
-
-            # Tách các giá trị từ dữ liệu tùy chỉnh
-            custom_data_map = dict(item.split("=") for item in decoded_extra_data.split("&"))
-
-            # Lấy dữ liệu tùy chỉnh (ví dụ: userId, sessionId)
-            transaction_id = int(custom_data_map.get('transaction_id'))
-            print(transaction_id)
-
-            # signature = hmac.new(
-            #     settings.MOMO_SECRET_KEY.encode(),
-            #     raw_signature.encode(),
-            #     hashlib.sha256
-            # ).hexdigest()
-
-            # print(signature)
-            # print(data["signature"])
-            # if signature != data["signature"]:
-            #     return Response({'error': 'Invalid Signature'}, status=status.HTTP_400_BAD_REQUEST)
-
-            transaction = Transaction.objects.filter(id=transaction_id).first()
-            print(transaction)
             try:
-                if data["resultCode"] == 7002:
-                    # Thanh toán thành công
-                    user = transaction.user
-                    transaction.status = TransactionStatus.SUCCESS.value
-                    transaction.save()
-                    MonthlyFee.objects.filter(room=user.room, status=MonthlyFeeStatus.PENDING.value).update(
-                        status=MonthlyFeeStatus.PAID.value, transaction=transaction
-                    )
-                    return Response({'msg': 'Payment success'}, status=status.HTTP_200_OK)
-            except Exception as ex:
-                transaction.status = TransactionStatus.FAIL.value
-                transaction.save()
-                return Response({'error': 'Payment fail'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                upload_result = upload(thumbnail)
+                transaction.thumbnail = upload_result['secure_url']
+            except CloudinaryError as ex:
+                return Response({'error': 'Upload thumbnail fail'},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            return Response({"msg": 'Thanh toán thành công'}, status=status.HTTP_200_OK)
         except Exception as ex:
+            print(ex)
             return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Request 3
 class MonthlyFeeViewSet(ViewSet):
 
     permission_classes = [MonthlyFeePerms]
+    pagination_class = paginations.MonthlyFeePagination
 
     def list(self, request, fee_id=None):
         user = request.user
@@ -373,8 +257,9 @@ class VehicleCardViewSet(viewsets.ViewSet,
     def register(self, request):
         try:
             user = request.user
+            print(user)
             data = request.data
-
+            print(data)
             full_name = data.get('full_name')
             citizen_card = data.get('citizen_card')
             vehicle_number = data.get('vehicle_number')
