@@ -178,7 +178,7 @@ class TransactionViewSet(viewsets.ViewSet,
     @action(methods=['post'], detail=False, url_path='momo', permission_classes=[IsAuthenticated])
     def create_payment_momo(self, request):
         try:
-            thumbnail = request.FILES.get('avatar')
+            thumbnail = request.FILES.get('thumbnail')
             monthly_fees = MonthlyFee.objects.filter(room=request.user.room, status=MonthlyFeeStatus.PENDING.value)
 
             if not monthly_fees.exists():
@@ -201,6 +201,7 @@ class TransactionViewSet(viewsets.ViewSet,
                 upload_result = upload(thumbnail)
                 transaction.thumbnail = upload_result['secure_url']
             except CloudinaryError as ex:
+                print(ex)
                 return Response({'error': 'Upload thumbnail fail'},
                                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
