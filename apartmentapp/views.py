@@ -1,6 +1,3 @@
-import base64
-import json
-from dbm.sqlite3 import error
 
 import stripe
 from cloudinary.uploader import upload_image, upload
@@ -92,8 +89,13 @@ class TransactionViewSet(viewsets.ViewSet,
     @action(methods=['post'], detail=False, url_path='stripe', permission_classes=[IsAuthenticated])
     def create_checkout_session_stripe(self, request):
         try:
-
-            monthly_fees = MonthlyFee.objects.filter(room=request.user.room, status=MonthlyFeeStatus.PENDING.value)
+            ids = request.data.get('ids')
+            ids = eval(ids)
+            monthly_fees = MonthlyFee.objects.filter(
+                room=request.user.room,
+                status=MonthlyFeeStatus.PENDING.value,
+                id__in = ids
+            )
 
 
             if not monthly_fees.exists():
@@ -126,7 +128,8 @@ class TransactionViewSet(viewsets.ViewSet,
             payment_intent = stripe.PaymentIntent.create(
                 amount=int(total_amount * 100),  # Chuyển đổi sang cent
                 currency='vnd',
-                metadata={'transaction_id': transaction.id, 'user_id': request.user.id}
+                metadata={'transaction_id': transaction.id, 'user_id': request.user.id, 'ids': ids},
+                statement_descriptor_suffix="Amount"
             )
 
             # Trả về client_secret thay vì sessionId
@@ -154,7 +157,8 @@ class TransactionViewSet(viewsets.ViewSet,
         session = event["data"]["object"]
         transaction_id = session["metadata"].get("transaction_id")
         user_id = session["metadata"].get("user_id")
-        print(transaction_id, user_id)
+        ids = session["metadata"].get("ids")
+        print(transaction_id, user_id, ids)
         transaction = Transaction.objects.filter(id=transaction_id).first()
         print(transaction)
         print(event["type"])
@@ -162,7 +166,7 @@ class TransactionViewSet(viewsets.ViewSet,
             if event["type"] == "payment_intent.succeeded":
                 user = User.objects.filter(id=user_id).first()
                 print(user)
-                (MonthlyFee.objects.filter(room=user.room, status=MonthlyFeeStatus.PENDING.value)
+                (MonthlyFee.objects.filter(room=user.room, status=MonthlyFeeStatus.PENDING.value, id__in=ids)
                  .update(status=MonthlyFeeStatus.PAID.value, transaction=transaction))
 
                 transaction.status = TransactionStatus.SUCCESS.value
@@ -171,15 +175,20 @@ class TransactionViewSet(viewsets.ViewSet,
         except Exception as ex:
             transaction.status = TransactionStatus.FAIL.value
             transaction.save()
-            print(error)
+            print(ex)
             return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # Momo
     @action(methods=['post'], detail=False, url_path='momo', permission_classes=[IsAuthenticated])
     def create_payment_momo(self, request):
         try:
+            ids = request.data.get('ids')
+            ids = eval(ids)
             thumbnail = request.FILES.get('thumbnail')
-            monthly_fees = MonthlyFee.objects.filter(room=request.user.room, status=MonthlyFeeStatus.PENDING.value)
+            monthly_fees = MonthlyFee.objects.filter(
+                room=request.user.room,
+                status=MonthlyFeeStatus.PENDING.value,
+                id__in=ids)
 
             if not monthly_fees.exists():
                 return Response({'msg': 'No monthly fee need to pay'})
@@ -190,24 +199,26 @@ class TransactionViewSet(viewsets.ViewSet,
                                                      user=request.user,
                                                      description=f"Phí dịch vụ của phòng {request.user.room}",
                                                      payment_gateway=PaymentGateway.MOMO.value,
-                                                     status=TransactionStatus.PENDING.value)
+                                                     status=TransactionStatus.SUCCESS.value)
 
             transaction.save()
-
-            (MonthlyFee.objects.filter(room=request.user.room, status=MonthlyFeeStatus.PENDING.value)
-             .update(status=MonthlyFeeStatus.PAID.value, transaction=transaction))
 
             try:
                 upload_result = upload(thumbnail)
                 transaction.thumbnail = upload_result['secure_url']
             except CloudinaryError as ex:
-                print(ex)
+                transaction.status = TransactionStatus.FAIL.value
+                transaction.save()
                 return Response({'error': 'Upload thumbnail fail'},
                                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            monthly_fees.update(status=MonthlyFeeStatus.PAID.value, transaction=transaction)
 
             return Response({"msg": 'Thanh toán thành công'}, status=status.HTTP_200_OK)
         except Exception as ex:
             print(ex)
+            transaction.status = TransactionStatus.FAIL.value
+            transaction.save()
             return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Request 3
@@ -218,8 +229,9 @@ class MonthlyFeeViewSet(ViewSet):
 
     def list(self, request, fee_id=None):
         user = request.user
+
         queryset = MonthlyFee.objects.filter(
-            transaction__user_id = user.id,
+            transaction__user_room = user.room,
             fee_id = fee_id
         ).select_related('fee')
 

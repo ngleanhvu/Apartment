@@ -3,7 +3,7 @@ from django.contrib import admin
 from django import forms
 from django.db import transaction
 from django.utils.safestring import mark_safe
-from apartmentapp.models import Reflection, User, MonthlyFee, Fee, Room, VehicleCard, RoomStatus
+from apartmentapp.models import Reflection, User, MonthlyFee, Fee, Room, VehicleCard, RoomStatus, Transaction
 from apartmentapp.static.test import amount
 
 
@@ -126,7 +126,20 @@ class VehicleCardAdmin(admin.ModelAdmin):
     list_display = ['vehicle_number', 'user']
     readonly_fields = ['vehicle_number', 'user']
 
+class MonthlyFeeInline(admin.TabularInline):
+    model = MonthlyFee
+    extra = 1
 
+class TransactionAdmin(admin.ModelAdmin):
+    model = Transaction
+    inlines = [MonthlyFeeInline]
+    fields = ['amount', 'payment_gateway', 'user']
+
+    def thumbnail(self, monthly_fee):
+        return mark_safe("<img src='{img_url}' alt='{alt}' width='120' />".format(
+            img_url=monthly_fee.thumbnail.url,
+            alt='Service Fee'
+        ))
 
 admin_site.register(Reflection, ReflectionAdmin)
 admin_site.register(User, UserAdmin)
@@ -134,3 +147,4 @@ admin_site.register(MonthlyFee, MonthlyFeeAdmin)
 admin_site.register(Fee, FeeAdmin)
 admin_site.register(Room, RoomAdmin)
 admin_site.register(VehicleCard, VehicleCardAdmin)
+admin_site.register(Transaction, TransactionAdmin)

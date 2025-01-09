@@ -220,7 +220,7 @@ class MonthlyFee(BaseModel):
     )
     room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True)
     fee = models.ForeignKey(Fee, on_delete=models.SET_NULL, null=True)
-    transaction = models.ForeignKey('Transaction', on_delete=models.SET_NULL, null=True, blank=True)
+    transaction = models.ForeignKey('Transaction', on_delete=models.CASCADE, null=True, blank=True)
 
     class Meta:
         unique_together = ('room', 'fee', 'created_date', 'status', 'transaction')
