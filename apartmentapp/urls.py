@@ -13,12 +13,12 @@ r.register('vehicle-cards', views.VehicleCardViewSet, basename='vehicle-cards')
 r.register('storage_lockers', views.StorageLockerViewSet, 'storage_lockers')
 r.register('packages', views.PackageViewSet, 'packages')
 r.register('feedbacks', views.FeedbackViewSet,'feedbacks')
-r.register('feedback_responses', views.FeedbackResponseViewSet, 'feedback_responses')
+#r.register('feedback_responses', views.FeedbackResponseViewSet, 'feedback_responses')
 r.register('surveys', views.SurveyViewSet, 'surveys')
-r.register('questions', views.QuestionViewSet, 'questions')
-r.register('question_options', views.QuestionOptionViewSet, 'question_options')
-r.register('answers', views.AnswerViewSet, 'answers')
-r.register('responses', views.ResponseViewSet, 'responses')
+# r.register('questions', views.QuestionViewSet, 'questions')
+# r.register('question_options', views.QuestionOptionViewSet, 'question_options')
+# r.register('answers', views.AnswerViewSet, 'answers')
+# r.register('responses', views.ResponseViewSet, 'responses')
 
 
 

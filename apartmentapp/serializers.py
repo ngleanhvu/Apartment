@@ -1,9 +1,8 @@
 from django.conf import settings
 from rest_framework import serializers
-from apartmentapp.models import User, StorageLocker, Package, FeedbackResponse, Feedback, Survey, Question, \
-    QuestionOption, Answer, Response
+from apartmentapp.models import StorageLocker, Package, FeedbackResponse, Feedback, Survey, Question, \
+    QuestionOption, Response, User, Fee, MonthlyFee, Room, Transaction, VehicleCard
 from twilio.rest import Client
-from apartmentapp.models import User, Fee, MonthlyFee, Room, Transaction, VehicleCard
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -113,74 +112,69 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Question
-        fields = ['id','content', 'type', 'survey', 'options']
+        fields = ['id','content', 'survey', 'options']
 
-class SurveyRetrieveSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer(many=True, read_only=True)
+class SurveyRetriveSerializer(serializers.ModelSerializer):
+    questions=QuestionSerializer(many=True)
 
     class Meta:
         model = Survey
-        fields = ['id','title', 'description', 'start_date', 'end_date', 'status', 'questions']
-
-
-class AnswerSerializer(serializers.ModelSerializer):
-    selected_options = QuestionOptionSerializer(many=True, read_only=True)
-    question = QuestionSerializer(read_only=True)
-
-    class Meta:
-        model = Answer
-        fields = ['id', 'question', 'text_answer', 'boolean_answer', 'selected_options']
-
-class AnswerCreateSerializer(serializers.ModelSerializer):
-    selected_options = serializers.PrimaryKeyRelatedField(
-        many=True,
-        queryset=QuestionOption.objects.all(),
-        required=False
-    )
-
-    class Meta:
-        model = Answer
-        fields = ['question', 'text_answer', 'boolean_answer', 'selected_options']
-
-    def validate(self, data):
-        question = data.get('question')
-
-        if question.type == 'Single choice':
-            selected_options = data.get('selected_options', [])
-            if len(selected_options) != 1:
-                raise serializers.ValidationError(
-                    f"Question {question.id} requires only 1 option to be selected."
-                )
-
-        return data
+        fields=['title', 'description','start_date', 'end_date', 'questions']
 
 class ResponseSerializer(serializers.ModelSerializer):
-    answers=AnswerSerializer(many=True, required=True)
-
     class Meta:
         model=Response
-        fields = ['id', 'survey', 'resident', 'submitted_at', 'answers']
-        ordering=['-submitted_at']
-
+        fields = ['id', 'survey', 'resident', 'question_option']
+        ordering=['-created_date']
 
 class ResponseCreateSerializer(serializers.ModelSerializer):
-    answers = AnswerCreateSerializer(many=True)
-
     class Meta:
-        model = Response
-        fields = ['survey', 'answers']
+        model=Response
+        fields=['']
 
-    def create(self, validated_data):
-        answers_data = validated_data.pop('answers')
-        response = Response.objects.create(**validated_data)
+# class AnswerCreateSerializer(serializers.ModelSerializer):
+#     selected_options = serializers.PrimaryKeyRelatedField(
+#         many=True,
+#         queryset=QuestionOption.objects.all(),
+#         required=False
+#     )
+#
+#     class Meta:
+#         model = Answer
+#         fields = ['question', 'text_answer', 'boolean_answer', 'selected_options']
+#
+#     def validate(self, data):
+#         question = data.get('question')
+#
+#         if question.type == 'Single choice':
+#             selected_options = data.get('selected_options', [])
+#             if len(selected_options) != 1:
+#                 raise serializers.ValidationError(
+#                     f"Question {question.id} requires only 1 option to be selected."
+#                 )
+#
+#         return data
 
-        for answer_data in answers_data:
-            selected_options = answer_data.pop('selected_options', [])
-            answer = Answer.objects.create(response=response, **answer_data)
-            if selected_options:
-                answer.selected_options.set(selected_options)
 
-        return response
+#
+# class ResponseCreateSerializer(serializers.ModelSerializer):
+#     answers = AnswerCreateSerializer(many=True)
+#
+#     class Meta:
+#         model = Response
+#         fields = ['survey', 'answers']
+#
+#     def create(self, validated_data):
+#         answers_data = validated_data.pop('answers')
+#         response = Response.objects.create(**validated_data)
+#
+#         for answer_data in answers_data:
+#             selected_options = answer_data.pop('selected_options', [])
+#             answer = Answer.objects.create(response=response, **answer_data)
+#             if selected_options:
+#                 answer.selected_options.set(selected_options)
+#
+#         return response
 class FeeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Fee

@@ -1,19 +1,17 @@
+from django.db import transaction
 from django.template.response import TemplateResponse
-
 from ckeditor.widgets import CKEditorWidget
 from calendar import month
 from datetime import datetime
-
 from ckeditor_uploader.widgets import CKEditorUploadingWidget
 from django.contrib import admin
 from django import forms
-from django.db import transaction
-from django.utils.safestring import mark_safe
-from apartmentapp.models import Reflection, User, MonthlyFee, Fee, Room, VehicleCard, RoomStatus, Transaction
-from apartmentapp.static.test import amount
-
+from rest_framework import status
+from django.contrib import messages
 from apartmentapp.models import Reflection, User, StorageLocker, Package, Feedback, FeedbackResponse, Survey, Question, \
-    QuestionOption, Response, Answer, QuestionTypeEnum
+    QuestionOption, Response, MonthlyFee, Fee, Room, VehicleCard, RoomStatus, Transaction, PackageStatus
+from django.utils.safestring import mark_safe
+from apartmentapp.static.test import amount
 from django.urls import path
 
 
@@ -93,7 +91,6 @@ def calculate_parking_fee(modeladmin, request, queryset):
 
     except Exception as ex:
         modeladmin.message_user(request, f"Error: {str(ex)}", level="error")
-
 
 class ReflectionForm(forms.ModelForm):
     content = forms.CharField(widget=CKEditorUploadingWidget)
@@ -182,6 +179,18 @@ class PackageAdmin(admin.ModelAdmin):
     search_fields = ['storage_locker__number', 'storage_locker__user__phone']
     list_filter = ['storage_locker__number', 'storage_locker__user__phone']
     readonly_fields = ['thumbnail_preview']
+    actions = ['change_status']
+
+    @admin.action(description="Xác nhận đã nhận hàng")
+    def change_status(self, request, queryset):
+        for package in queryset:
+            if package.status == PackageStatus.NOT_RECEIVED.value:
+                package.status = PackageStatus.RECEIVED.value
+                package.pickup_time = datetime.now()
+                package.save()
+                messages.success(request, f"Package {package.id} status updated to RECEIVED.")
+            else:
+                messages.warning(request, f"Package {package.id} is already RECEIVED.")
 
     def thumbnail_preview(self, package):
         if package.thumbnail:
@@ -218,9 +227,9 @@ class QuestionInlineAdmin(admin.StackedInline):
     model=Question
     fk_name = 'survey'
 
-class QuestionOptionInlineAdmin(admin.StackedInline):
-    model = QuestionOption
-    fk_name = 'question'
+# class QuestionOptionInlineAdmin(admin.StackedInline):
+#     model = QuestionOption
+#     fk_name = 'question'
 
 class SurveyAdmin(admin.ModelAdmin):
     list_display = ['title', 'start_date', 'end_date', 'status', 'description']
@@ -230,32 +239,31 @@ class SurveyAdmin(admin.ModelAdmin):
     inlines = (QuestionInlineAdmin, )
 
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ['content', 'type', 'survey']
-    search_fields = ['survey__title', 'type']
-    filter=['survey', 'type']
+    list_display = ['content', 'survey']
+    search_fields = ['survey__title']
+    filter=['survey']
     ordering = ['survey']
-    inlines = (QuestionOptionInlineAdmin, )
+    #inlines = (QuestionOptionInlineAdmin, )
 
 class QuestionOptionAdmin(admin.ModelAdmin):
-    list_display = ['content', 'question']
+    list_display = ['content']
     search_fields = ['question']
     filter=['question__survey']
-    ordering = ['question']
 
 
 class ResponseAdmin(admin.ModelAdmin):
-    list_display = ['survey', 'resident', 'submitted_at']
-    list_filter = ['submitted_at', 'survey']
+    list_display = ['survey', 'resident', 'question_option', 'question']
+    list_filter = ['survey']
     search_fields = ['resident__full_name', 'survey__title']
 
-class AnswerAdmin(admin.ModelAdmin):
-    list_display = ['question', 'response', 'text_answer', 'boolean_answer', 'display_selected_options']
-    list_filter = ['question__survey', 'response__resident', 'question__type']
-    search_fields = ['question__content']
-
-    def display_selected_options(self, obj):
-        return ", ".join([str(option) for option in obj.selected_options.all()])
-    display_selected_options.short_description = 'Selected Options'
+# class AnswerAdmin(admin.ModelAdmin):
+#     list_display = ['question', 'response', 'text_answer', 'boolean_answer', 'display_selected_options']
+#     list_filter = ['question__survey', 'response__resident', 'question__type']
+#     search_fields = ['question__content']
+#
+#     def display_selected_options(self, obj):
+#         return ", ".join([str(option) for option in obj.selected_options.all()])
+#     display_selected_options.short_description = 'Selected Options'
 
 
 admin_site.register(Reflection, ReflectionAdmin)
@@ -265,7 +273,6 @@ admin_site.register(Fee, FeeAdmin)
 admin_site.register(Room, RoomAdmin)
 admin_site.register(VehicleCard, VehicleCardAdmin)
 admin_site.register(Transaction, TransactionAdmin)
-admin_site.register(User)
 admin_site.register(StorageLocker, StorageLockerAdmin)
 admin_site.register(Package, PackageAdmin)
 #
@@ -276,4 +283,3 @@ admin_site.register(Survey, SurveyAdmin)
 admin_site.register(Question, QuestionAdmin)
 admin_site.register(QuestionOption, QuestionOptionAdmin)
 admin_site.register(Response, ResponseAdmin)
-admin_site.register(Answer, AnswerAdmin)

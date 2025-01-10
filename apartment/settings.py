@@ -34,7 +34,7 @@ TWILIO_AUTH_TOKEN = '077a939148d677c3f3963c548d517989'
 TWILIO_PHONE_NUMBER = '+12299220537'
 
 
-ALLOWED_HOSTS = ['192.168.1.224', 'localhost', '127.0.0.1', '10.0.2.2']
+ALLOWED_HOSTS = ['192.168.1.54', 'localhost', '127.0.0.1', '10.0.2.2']
 
 # Application definition
 
@@ -69,7 +69,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.common.CommonMiddleware'
+    'django.middleware.common.CommonMiddleware',
+
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -101,7 +102,7 @@ WSGI_APPLICATION = 'apartment.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'apartment_db',
+        'NAME': 'apartment_db_v2',
         'USER': 'root',
         'PASSWORD': '1234',
     }
