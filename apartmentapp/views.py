@@ -29,7 +29,7 @@ from apartmentapp.models import User, MonthlyFee, Room, Transaction, MonthlyFeeS
     TransactionStatus, Fee, VehicleCard, Relationship
 from cloudinary.exceptions import Error as CloudinaryError
 from apartmentapp.permissions import MonthlyFeePerms
-from apartmentapp.serializers import MonthlyFeeSerializer
+from apartmentapp.serializers import MonthlyFeeSerializer, FeeSerializer
 
 stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
 
@@ -100,10 +100,27 @@ class RoomViewSet(viewsets.ModelViewSet):
 
 # Request 2
 class TransactionViewSet(viewsets.ViewSet,
-                         generics.UpdateAPIView,
-                         generics.RetrieveAPIView):
+                         generics.ListAPIView):
+
     queryset = Transaction.objects.filter(active=True)
     serializer_class = serializers.TransactionSerializer
+    pagination_class = paginations.MonthlyFeePagination
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        query = self.queryset
+        query = query.filter(user=user, status=TransactionStatus.SUCCESS)
+        fee_id = self.request.query_params.get('fee_id')
+        if fee_id:
+            query= query.filter(monthlyfee__fee_id=fee_id)
+
+        q = self.request.query_params.get("q")
+        if q:
+            query = query.filter(description__icontains=q)
+
+        return query
+
 
     # Stripe payment
     @csrf_exempt
@@ -142,7 +159,7 @@ class TransactionViewSet(viewsets.ViewSet,
 
             transaction = Transaction.objects.create(amount=total_amount,
                                                      user=request.user,
-                                                     description=f"Phí dịch vụ của phòng {request.user.room}",
+                                                     description=f"Phí chung cư hằng tháng của phòng {request.user.room}",
                                                      payment_gateway=PaymentGateway.STRIPE.value,
                                                      status=TransactionStatus.PENDING.value)
 
@@ -248,18 +265,6 @@ class MonthlyFeeViewSet(ViewSet):
     permission_classes = [MonthlyFeePerms]
     pagination_class = paginations.MonthlyFeePagination
 
-    def list(self, request, fee_id=None):
-        user = request.user
-
-        queryset = MonthlyFee.objects.filter(
-            transaction__user_room = user.room,
-            fee_id = fee_id
-        ).select_related('fee')
-
-        serializers = MonthlyFeeSerializer(queryset, many=True)
-
-        return Response(serializers.data, status=status.HTTP_200_OK)
-
     @action(methods=['get'], detail=False, url_path='pending')
     def list_monthly_fee_pending(self, request):
         print('a')
@@ -327,6 +332,12 @@ class VehicleCardViewSet(viewsets.ViewSet,
         except Exception as ex:
             return Response({'error': str(ex)},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class FeeViewSet(viewsets.ViewSet,
+                 generics.ListAPIView):
+
+    queryset = Fee.objects.filter(active=True)
+    serializer_class = FeeSerializer
 
 
 class StorageLockerViewSet(viewsets.ModelViewSet):
@@ -400,6 +411,8 @@ class FeedbackViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         return Response(serializer.errors)
 
+    queryset = Fee.objects.filter(active=True)
+    serializer_class = FeeSerializer
 class FeedbackResponseViewSet(viewsets.ModelViewSet):
     queryset = FeedbackResponse.objects.filter(active=True)
     serializer_class = FeedbackResponseSerializer

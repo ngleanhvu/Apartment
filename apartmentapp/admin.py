@@ -1,6 +1,9 @@
 from django.template.response import TemplateResponse
 
 from ckeditor.widgets import CKEditorWidget
+from calendar import month
+from datetime import datetime
+
 from ckeditor_uploader.widgets import CKEditorUploadingWidget
 from django.contrib import admin
 from django import forms
@@ -57,7 +60,10 @@ def calculate_service_fee(modeladmin, request, queryset):
             if room.status == RoomStatus.AVAILABLE.value:
                 continue
 
-            monthly_fee = MonthlyFee(fee=fee, amount=fee.value, room=room)
+            monthly_fee = MonthlyFee(fee=fee,
+                                     amount=fee.value,
+                                     room=room,
+                                     description=f"Phí dịch vụ tháng {datetime.now().month} năm {datetime.now().year} phòng {room.room_number}")
             monthly_fees.append(monthly_fee)
 
         MonthlyFee.objects.bulk_create(monthly_fees)
@@ -75,7 +81,10 @@ def calculate_parking_fee(modeladmin, request, queryset):
         for room in queryset:
             vehicle_count = VehicleCard.objects.filter(user__room=room, active=True).count()
             if vehicle_count > 0:
-                monthly_fee = MonthlyFee(fee=fee, room=room, amount=fee.value*vehicle_count)
+                monthly_fee = MonthlyFee(fee=fee,
+                                         room=room,
+                                         amount=fee.value*vehicle_count,
+                                         description=f"Phí giữ xe tháng {datetime.now().month} năm {datetime.now().year} phòng {room.room_number}")
                 monthly_fees.append(monthly_fee)
 
         MonthlyFee.objects.bulk_create(monthly_fees)

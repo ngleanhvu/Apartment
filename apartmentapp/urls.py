@@ -22,6 +22,7 @@ r.register('responses', views.ResponseViewSet, 'responses')
 
 
 
+r.register('fees', views.FeeViewSet, basename='fees')
 urlpatterns = [
     path('', include(r.urls)),
     path('monthly-fees/fees/<int:fee_id>/', MonthlyFeeViewSet.as_view({'get': 'list'})),
