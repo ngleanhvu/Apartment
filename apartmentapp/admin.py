@@ -1,3 +1,6 @@
+from django.template.response import TemplateResponse
+from lib2to3.btm_utils import reduce_tree
+
 from ckeditor.widgets import CKEditorWidget
 from ckeditor_uploader.widgets import CKEditorUploadingWidget
 from django.contrib import admin
@@ -6,12 +9,20 @@ from django.utils.safestring import mark_safe
 
 from apartmentapp.models import Reflection, User, StorageLocker, Package, Feedback, FeedbackResponse, Survey, Question, \
     QuestionOption, Response, Answer, QuestionTypeEnum
+from django.urls import path
 
 
 # Register your models here.
-
 class ApartmentAdminSite(admin.AdminSite):
     site_header = 'Apartment Management'
+
+    def get_urls(self):
+        return [path('survey-stats/', self.stats_view)] + super().get_urls()
+
+    def stats_view(self, request):
+        return TemplateResponse(request, 'admin/stats.html', {
+
+        })
 
 admin_site = ApartmentAdminSite('myapartment')
 
