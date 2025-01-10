@@ -9,8 +9,12 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
-
+import hashlib
+import hmac
+import uuid
 from pathlib import Path
+
+from django.conf.global_settings import INTERNAL_IPS
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,8 +34,7 @@ TWILIO_AUTH_TOKEN = '077a939148d677c3f3963c548d517989'
 TWILIO_PHONE_NUMBER = '+12299220537'
 
 
-ALLOWED_HOSTS = ['192.168.1.224']
-
+ALLOWED_HOSTS = ['192.168.1.224', 'localhost', '127.0.0.1', '10.0.2.2']
 
 # Application definition
 
@@ -47,12 +50,12 @@ INSTALLED_APPS = [
     'ckeditor_uploader',
     'drf_yasg',
     'oauth2_provider',
+    'corsheaders',
     'twilio'
 ]
 
-
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES' : (
+    'DEFAULT_AUTHENTICATION_CLASSES': (
         'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
     )
 }
@@ -65,7 +68,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware'
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'apartment.urls'
 
@@ -156,4 +163,23 @@ cloudinary.config(
     secure=True
 )
 
+OAUTH2_PROVIDER = {'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore'}
 
+# Stripe
+STRIPE_TEST_SECRET_KEY = 'sk_test_51QVllgLGRlPpjKfjbEEn7dEVvjYxYgwsUigFw7vBqjfcFnGWSNXJYBihEGEb1Krw08HyRzHVn5Ja3joFMb3oNf6t007VdyyRUh'
+STRIPE_TEST_PUBLIC_KEY = 'pk_test_51QVllgLGRlPpjKfjb0kJx1duZJodKVhBPgUrlEqAWHSweobrx0xToWMeFmfwbfMQ72QOzSOTnDyqjR5Fq6XODa1H007P3RGFcj'
+STRIPE_TEST_ENDPOINT_SECRET = 'whsec_SlMnWE5i83YxE1DOGXnHQDIFGzX9kBm8'
+STRIPE_TEST_SUCCESS_URL = 'http://127.0.0.1:8000/success/'
+STRIPE_TEST_ERROR_URL = 'http://127.0.0.1:8000/cancel/'
+
+# Momo
+# parameters send to MoMo get get payUrl
+MOMO_END_POINT = "https://test-payment.momo.vn/v2/gateway/api/create"
+MOMO_PATTERN_CODE = "MOMO"
+MOMO_ACCESS_KEY = "F8BBA842ECF85"
+MOMO_SECRET_KEY = "K951B6PE1waDMi640xX08PD3vg6EkVlz"
+MOMO_RETURN_URL = "apm://payment/success"
+MOMO_NOTIFY_URL = "http://127.0.0.1:8000/api/payment/webhook/momo/"
+MOMO_REQUEST_TYPE = "captureWallet"
+MOMO_REDIRECT_URL = 'apm://payment/success'
+MOMO_IPN_URL = 'https://478a-14-186-144-166.ngrok-free.app/transactions/webhook/momo/'

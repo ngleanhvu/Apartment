@@ -1,4 +1,4 @@
-
+from contextlib import nullcontext
 from datetime import datetime, timedelta
 from random import choice
 from tkinter.constants import CASCADE
@@ -6,11 +6,12 @@ from tkinter.constants import CASCADE
 from aiohttp.web_urldispatcher import Resource
 from ckeditor.fields import RichTextField
 from cloudinary.models import CloudinaryField
+from dateutil.relativedelta import relativedelta
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from enum import Enum
 
-from django.db.models import ForeignKey, Model
+from django.db.models import CharField, ForeignKey, Model
 
 
 # Create your models here
@@ -23,6 +24,7 @@ class BaseModel(models.Model):
     class Meta:
         abstract = True
 
+
 class Relationship(Enum):
     APARTMENT_OWNER = 'Apartment owner'
     RELATIVE = 'Relative'
@@ -31,19 +33,20 @@ class Relationship(Enum):
     def choices(cls):
         return [(x.value, x.name) for x in cls]
 
+
 class User(AbstractUser):
     full_name = models.CharField(max_length=100, null=False)
     phone = models.CharField(max_length=15, null=False, unique=True)
     date_of_birth = models.DateTimeField(auto_now=False, null=True)
     gender = models.BooleanField(default=True)
     citizen_card = models.CharField(max_length=15, null=False, unique=True)
-    thumbnail = CloudinaryField(null=True)
+    thumbnail = CloudinaryField(null=True, blank=True)
     changed_password = models.BooleanField(default=False)
-
-    #room = models.ForeignKey('Room', on_delete=models.CASCADE, null=True)
+    room = models.ForeignKey('Room', on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         return self.full_name
+
 
 class RoomStatus(Enum):
     AVAILABLE = 'Available'
@@ -53,6 +56,7 @@ class RoomStatus(Enum):
     def choices(cls):
         return [(x.value, x.name) for x in cls]
 
+
 class Room(BaseModel):
     room_number = models.CharField(max_length=20, null=False, unique=True)
     area = models.FloatField(default=0)
@@ -60,31 +64,31 @@ class Room(BaseModel):
     status = models.CharField(
         max_length=20,
         choices=RoomStatus.choices(),
-        default=RoomStatus.AVAILABLE
+        default=RoomStatus.AVAILABLE.value
     )
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    unit_price = models.FloatField(default=0)
 
     def __str__(self):
         return self.room_number
 
+
 class VehicleCard(BaseModel):
-    full_name = models.CharField(max_length=100, null=False, default='')
-    expiration_date = models.DateTimeField()
     vehicle_number = models.CharField(max_length=20, null=False, unique=True)
     relationship = models.CharField(
-        max_length=30,
+        max_length=20,
         choices=Relationship.choices(),
-        default=Relationship.APARTMENT_OWNER
+        default=Relationship.APARTMENT_OWNER.value
     )
+    full_name = models.CharField(null=False, max_length=50)
+    citizen_card = models.CharField(null=False, max_length=30)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    def save(self, *args, **kwargs):
-        if not self.expiration_date:
-            self.expiration_date = self.created_date + timedelta(days=365 * 3)
-        super().save(*args, **kwargs)
+    class Meta:
+        unique_together = ('vehicle_number', 'citizen_card', 'active', 'user')
 
     def __str__(self):
         return self.vehicle_number
+
 
 class StorageLocker(BaseModel):
     number = models.CharField(max_length=50)
@@ -93,6 +97,7 @@ class StorageLocker(BaseModel):
     def __str__(self):
         return self.number
 
+
 class PackageStatus(Enum):
     NOT_RECEIVED = 'Not received'
     RECEIVED = 'Received'
@@ -100,6 +105,7 @@ class PackageStatus(Enum):
     @classmethod
     def choices(cls):
         return [(x.value, x.name) for x in cls]
+
 
 class Package(BaseModel):
     sender_name = models.CharField(max_length=50)
@@ -133,12 +139,12 @@ class Reflection(BaseModel):
     status = models.CharField(
         max_length=20,
         choices=ReflectionStatus.choices(),
-        default=ReflectionStatus.APPROVING
+        default=ReflectionStatus.APPROVING.value
     )
     resolution = models.CharField(max_length=255, null=True, blank=True)
     resolved_date = models.DateTimeField(null=True)
     admin_resolved = models.CharField(max_length=255)
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return self.title
@@ -157,14 +163,16 @@ class CommonNotification(BaseModel):
     delivery_method = models.CharField(
         max_length=20,
         choices=DeliveryMethod.choices(),
-        default=DeliveryMethod.APP
+        default=DeliveryMethod.APP.value
     )
 
     def __str__(self):
         return self.title
 
+
 class PrivateNotification(CommonNotification):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+
 
 class PaymentGateway(Enum):
     TRANSFER = 'Transfer'
@@ -175,40 +183,68 @@ class PaymentGateway(Enum):
     def choices(cls):
         return [(x.value, x.name) for x in cls]
 
-class Transaction(BaseModel):
-    recipient_account_number = models.CharField(max_length=20)
-    amount = models.FloatField(default=0)
-    description = models.CharField(max_length=100)
-    sender_account_number = models.CharField(max_length=100)
-    payment_gateway = models.CharField(
-        max_length=20,
-        choices=PaymentGateway.choices(),
-        default=PaymentGateway.TRANSFER
-    )
-    thumbnail = CloudinaryField(null=True)
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    fees = models.ManyToManyField('Fee', through='TransactionFee', related_name='transactions')
 
-    def __str__(self):
-        return self.amount
+class TransactionStatus(Enum):
+    PENDING = 'Pending'
+    SUCCESS = 'Success'
+    FAIL = 'Fail'
+
+    @classmethod
+    def choices(cls):
+        return [(x.value, x.name) for x in cls]
+
 
 class Fee(BaseModel):
     name = models.CharField(max_length=50)
-    unit_price = models.FloatField(default=0)
-    unit = models.CharField(max_length=20)
+    description = models.CharField(max_length=100)
+    value = models.FloatField(default=0)
 
     def __str__(self):
         return self.name
 
-class TransactionFee(BaseModel):
-    note = models.CharField(max_length=100)
-    unit_price = models.FloatField(default=0)
-    quantity = models.IntegerField(default=0)
-    fee = models.ForeignKey(Fee, on_delete=models.CASCADE)
-    transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE)
+
+class MonthlyFeeStatus(Enum):
+    PENDING = 'Pending'
+    PAID = 'Paid'
+
+    @classmethod
+    def choices(cls):
+        return [(x.value, x.name) for x in cls]
+
+
+class MonthlyFee(BaseModel):
+    amount = models.FloatField(default=0)
+    status = models.CharField(
+        max_length=20,
+        choices=MonthlyFeeStatus.choices(),
+        default=MonthlyFeeStatus.PENDING.value
+    )
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True)
+    fee = models.ForeignKey(Fee, on_delete=models.SET_NULL, null=True)
+    transaction = models.ForeignKey('Transaction', on_delete=models.CASCADE, null=True, blank=True)
 
     class Meta:
-        unique_together = ('fee', 'transaction')
+        unique_together = ('room', 'fee', 'created_date', 'status', 'transaction')
+
+
+class Transaction(BaseModel):
+    amount = models.FloatField(default=0)
+    payment_gateway = models.CharField(
+        max_length=20,
+        choices=PaymentGateway.choices(),
+        default=PaymentGateway.MOMO.value
+    )
+    description = models.CharField(max_length=255)
+    thumbnail = CloudinaryField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=TransactionStatus.choices(),
+        default=TransactionStatus.PENDING.value
+    )
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    def __str__(self):
+        return self.user.full_name
 
 #FEEDBACK
 class FeedbackStatus(Enum):
@@ -304,7 +340,6 @@ class Answer(BaseModel):
 
     def __str__(self):
         return f"Answer to {self.question.content}"
-
 
 
 
