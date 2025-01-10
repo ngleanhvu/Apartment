@@ -220,6 +220,7 @@ class MonthlyFee(BaseModel):
     )
     room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True)
     fee = models.ForeignKey(Fee, on_delete=models.SET_NULL, null=True)
+    description = models.CharField(max_length=100)
     transaction = models.ForeignKey('Transaction', on_delete=models.CASCADE, null=True, blank=True)
 
     class Meta:
