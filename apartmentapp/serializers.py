@@ -54,3 +54,20 @@ class VehicleCardSerializer(serializers.ModelSerializer):
         model = VehicleCard
         fields = '__all__'
 
+
+class TransactionDetailSerializer(serializers.ModelSerializer):
+    monthly_fees = MonthlyFeeSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Transaction
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.thumbnail:
+            thumbnail_url = str(instance.thumbnail)
+            if thumbnail_url.startswith("image/upload/"):
+                data["thumbnail"] = thumbnail_url.replace("image/upload/", "")
+            else:
+                data["thumbnail"] = thumbnail_url
+        return data

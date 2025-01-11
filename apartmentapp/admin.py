@@ -1,13 +1,9 @@
-from calendar import month
 from datetime import datetime
-
 from ckeditor_uploader.widgets import CKEditorUploadingWidget
 from django.contrib import admin
 from django import forms
-from django.db import transaction
 from django.utils.safestring import mark_safe
 from apartmentapp.models import Reflection, User, MonthlyFee, Fee, Room, VehicleCard, RoomStatus, Transaction
-from apartmentapp.static.test import amount
 
 
 # Register your models here.
@@ -142,11 +138,11 @@ class MonthlyFeeInline(admin.TabularInline):
 class TransactionAdmin(admin.ModelAdmin):
     model = Transaction
     inlines = [MonthlyFeeInline]
-    fields = ['amount', 'payment_gateway', 'user']
+    fields = ['amount', 'payment_gateway', 'user', 'thumbnail']
 
-    def thumbnail(self, monthly_fee):
+    def thumbnail(self, transaction):
         return mark_safe("<img src='{img_url}' alt='{alt}' width='120' />".format(
-            img_url=monthly_fee.thumbnail.url,
+            img_url=transaction.thumbnail.url,
             alt='Service Fee'
         ))
 

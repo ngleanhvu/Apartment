@@ -12,9 +12,8 @@ from apartmentapp import serializers, paginations
 from apartmentapp.models import User, MonthlyFee, Room, Transaction, MonthlyFeeStatus, PaymentGateway, \
     TransactionStatus, Fee, VehicleCard, Relationship
 from cloudinary.exceptions import Error as CloudinaryError
-from apartmentapp.permissions import MonthlyFeePerms
-from apartmentapp.serializers import MonthlyFeeSerializer, FeeSerializer
-
+from apartmentapp.permissions import MonthlyFeePerms, TransactionPerms
+from apartmentapp.serializers import FeeSerializer
 stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
 
 
@@ -89,16 +88,28 @@ class TransactionViewSet(viewsets.ViewSet,
     def get_queryset(self):
         user = self.request.user
         query = self.queryset
-        query = query.filter(user=user, status=TransactionStatus.SUCCESS)
-        fee_id = self.request.query_params.get('fee_id')
+        query = query.filter(user=user, status=TransactionStatus.SUCCESS.value)
+        fee_id = self.request.query_params.get('feeId')
         if fee_id:
-            query= query.filter(monthlyfee__fee_id=fee_id)
+            query= query.filter(monthly_fees__fee_id=fee_id)
 
         q = self.request.query_params.get("q")
         if q:
             query = query.filter(description__icontains=q)
 
         return query
+
+    @action(methods=['get'], detail=True, url_path='detail', permission_classes=[TransactionPerms])
+    def get_transaction_detail(self, request, pk):
+        try:
+            queryset = self.queryset.filter(id=pk)
+            print(str(queryset.query))
+
+            return Response(serializers.TransactionDetailSerializer(queryset.first()).data,
+                            status=status.HTTP_200_OK)
+        except Exception as ex:
+            print(ex)
+            return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
     # Stripe payment
@@ -118,6 +129,8 @@ class TransactionViewSet(viewsets.ViewSet,
             if not monthly_fees.exists():
                 return Response({'msg': 'No monthly fee need to pay'})
 
+            monthly_fee = monthly_fees.first()
+
             data = []
 
             total_amount = sum(fee.amount for fee in monthly_fees)
@@ -136,16 +149,14 @@ class TransactionViewSet(viewsets.ViewSet,
 
                 data.append(y)
 
-            transaction = Transaction.objects.create(amount=total_amount,
-                                                     user=request.user,
-                                                     description=f"Phí chung cư hằng tháng của phòng {request.user.room}",
-                                                     payment_gateway=PaymentGateway.STRIPE.value,
-                                                     status=TransactionStatus.PENDING.value)
-
             payment_intent = stripe.PaymentIntent.create(
                 amount=int(total_amount * 100),  # Chuyển đổi sang cent
                 currency='vnd',
-                metadata={'transaction_id': transaction.id, 'user_id': request.user.id, 'ids': ids},
+                metadata={'user_id': request.user.id,
+                          'ids': ids,
+                          'total_amount': total_amount,
+                          "month": monthly_fee.created_date.month,
+                          "year": monthly_fee.created_date.year},
                 statement_descriptor_suffix="Amount"
             )
 
@@ -172,26 +183,26 @@ class TransactionViewSet(viewsets.ViewSet,
             return Response({'error': 'Invalid Signature'}, status=status.HTTP_400_BAD_REQUEST)
 
         session = event["data"]["object"]
-        transaction_id = session["metadata"].get("transaction_id")
-        user_id = session["metadata"].get("user_id")
+        total_amount = session["metadata"].get("total_amount")
+        month = session["metadata"].get("month")
+        year = session["metadata"].get("year")
         ids = session["metadata"].get("ids")
-        print(transaction_id, user_id, ids)
-        transaction = Transaction.objects.filter(id=transaction_id).first()
-        print(transaction)
         print(event["type"])
+
         try:
             if event["type"] == "payment_intent.succeeded":
-                user = User.objects.filter(id=user_id).first()
-                print(user)
-                (MonthlyFee.objects.filter(room=user.room, status=MonthlyFeeStatus.PENDING.value, id__in=ids)
+
+                transaction = Transaction.objects.create(amount=total_amount,
+                                                         user=request.user,
+                                                         description=f"Phí chung cư tháng {month} năm {year} phòng {request.user.room}",
+                                                         payment_gateway=PaymentGateway.STRIPE.value,
+                                                         status=TransactionStatus.SUCCESS.value)
+
+                (MonthlyFee.objects.filter(room=request.user.room, status=MonthlyFeeStatus.PENDING.value, id__in=ids)
                  .update(status=MonthlyFeeStatus.PAID.value, transaction=transaction))
 
-                transaction.status = TransactionStatus.SUCCESS.value
-                transaction.save()
                 return Response({'msg': 'Payment success'}, status=status.HTTP_200_OK)
         except Exception as ex:
-            transaction.status = TransactionStatus.FAIL.value
-            transaction.save()
             print(ex)
             return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -210,24 +221,24 @@ class TransactionViewSet(viewsets.ViewSet,
             if not monthly_fees.exists():
                 return Response({'msg': 'No monthly fee need to pay'})
 
+            monthly_fee = monthly_fees.first()
+
             total_amount = sum(fee.amount for fee in monthly_fees)
 
             transaction = Transaction(amount=total_amount,
                                                      user=request.user,
-                                                     description=f"Phí dịch vụ của phòng {request.user.room}",
+                                                     description=f"Phí chung cư tháng {monthly_fee.created_date.month} năm {monthly_fee.created_date.year} phòng {request.user.room}",
                                                      payment_gateway=PaymentGateway.MOMO.value,
                                                      status=TransactionStatus.SUCCESS.value)
-
-            transaction.save()
 
             try:
                 upload_result = upload(thumbnail)
                 transaction.thumbnail = upload_result['secure_url']
             except CloudinaryError as ex:
-                transaction.status = TransactionStatus.FAIL.value
-                transaction.save()
                 return Response({'error': 'Upload thumbnail fail'},
                                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            transaction.save()
 
             monthly_fees.update(status=MonthlyFeeStatus.PAID.value, transaction=transaction)
 
