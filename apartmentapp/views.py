@@ -1,4 +1,4 @@
-
+from datetime import datetime
 import stripe
 from cloudinary.uploader import upload_image, upload
 from django.views.decorators.csrf import csrf_exempt
@@ -14,6 +14,7 @@ from apartmentapp.models import User, MonthlyFee, Room, Transaction, MonthlyFeeS
 from cloudinary.exceptions import Error as CloudinaryError
 from apartmentapp.permissions import MonthlyFeePerms, TransactionPerms
 from apartmentapp.serializers import FeeSerializer
+
 stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
 
 
@@ -89,13 +90,22 @@ class TransactionViewSet(viewsets.ViewSet,
         user = self.request.user
         query = self.queryset
         query = query.filter(user=user, status=TransactionStatus.SUCCESS.value)
+
         fee_id = self.request.query_params.get('feeId')
         if fee_id:
-            query= query.filter(monthly_fees__fee_id=fee_id)
+            query = query.filter(monthly_fees__fee_id=fee_id)
 
         q = self.request.query_params.get("q")
         if q:
             query = query.filter(description__icontains=q)
+
+        month = self.request.query_params.get("month")
+        if month:
+            filter_month_year = datetime.strptime(month, "%Y-%m").date()
+            query = query.filter(
+                created_date__month=filter_month_year.month,
+                created_date__year=filter_month_year.year
+            )
 
         return query
 
@@ -274,12 +284,8 @@ class VehicleCardViewSet(viewsets.ViewSet,
     model = VehicleCard
     serializer_class = serializers.VehicleCardSerializer
     queryset = VehicleCard.objects.filter(active=True)
-
-    def get_permissions(self):
-        if self.action.__eq__('list'):
-            return [IsAdminUser(), IsAuthenticated()]
-
-        return [IsAuthenticated()]
+    permission_classes = [IsAuthenticated]
+    pagination_class = paginations.MonthlyFeePagination
 
 
     @action(methods=['post'], detail=False, url_path='register')
@@ -289,9 +295,13 @@ class VehicleCardViewSet(viewsets.ViewSet,
             print(user)
             data = request.data
             print(data)
-            full_name = data.get('full_name')
-            citizen_card = data.get('citizen_card')
-            vehicle_number = data.get('vehicle_number')
+            full_name = data.get('fullName')
+            citizen_card = data.get('citizenCard')
+            vehicle_number = data.get('vehicleNumber')
+
+            if not full_name or not citizen_card or not vehicle_number:
+                return Response({'error': 'Vui lòng điền đầy đủ thông tin'},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             v = VehicleCard(full_name=full_name,
                             citizen_card=citizen_card,
@@ -303,24 +313,34 @@ class VehicleCardViewSet(viewsets.ViewSet,
 
             v.save()
 
-            return Response({serializers.VehicleCardSerializer(v).data},
+            return Response(serializers.VehicleCardSerializer(v).data,
                             status=status.HTTP_201_CREATED)
         except Exception as ex:
+            print(ex)
             return Response({'error': str(ex)},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(methods=['get'], detail=False, url_path='users')
     def get_by_user(self, request):
         try:
-
             user = request.user
-            vehicle_cards = VehicleCard.objects.filter(user=user).all()
+            vehicle_cards = VehicleCard.objects.filter(user=user)
 
-            return Response({'vehicle_cards': serializers.VehicleCardSerializer(vehicle_cards, many=True).data},
-                            status=status.HTTP_200_OK)
+            q = request.query_params.get('q')
+
+            if q:
+                vehicle_cards = vehicle_cards.filter(vehicle_number__icontains=q)
+
+            paginator = self.pagination_class()
+            result_page = paginator.paginate_queryset(vehicle_cards, request)
+
+
+            return paginator.get_paginated_response(
+                        serializers.VehicleCardSerializer(result_page, many=True).data
+                    )
 
         except Exception as ex:
-            return Response({'error': str(ex)},
+            return Response({'error': f"An error occurred: {str(ex)}"},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class FeeViewSet(viewsets.ViewSet,

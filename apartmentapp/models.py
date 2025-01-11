@@ -79,7 +79,7 @@ class VehicleCard(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     class Meta:
-        unique_together = ('vehicle_number', 'citizen_card', 'active', 'user')
+        unique_together = ('vehicle_number', 'citizen_card', 'full_name', 'user')
 
     def __str__(self):
         return self.vehicle_number
