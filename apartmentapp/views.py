@@ -1,6 +1,7 @@
 from datetime import datetime
 import stripe
 from cloudinary.uploader import upload_image, upload
+from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, status, generics, permissions
 from rest_framework.decorators import action, permission_classes
@@ -22,7 +23,8 @@ stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
 
 # Request 1
 class UserViewSet(viewsets.ViewSet,
-                  generics.RetrieveAPIView):
+                  generics.RetrieveAPIView,
+                  generics.ListAPIView):
     queryset = User.objects.filter(is_active=True)
     serializer_class = serializers.UserSerializer
 
@@ -349,3 +351,22 @@ class FeeViewSet(viewsets.ViewSet,
     queryset = Fee.objects.filter(active=True)
     serializer_class = FeeSerializer
 
+
+def chat_list_view(request):
+    # Lấy danh sách tất cả thành viên trong chung cư
+    users = User.objects.filter(is_active=True)
+
+    return render(request, 'chat_list.html', {
+        'users': users
+    })
+
+
+def chat_view(request, receiver_id):
+    receiver = User.objects.get(id=receiver_id)
+
+    return render(request, 'chat.html', {
+        'receiver_id': receiver.id,
+        'receiver_name': receiver.full_name,
+        'user_id': request.user.id,
+        'user_name': request.user.full_name
+    })

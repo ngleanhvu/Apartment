@@ -32,3 +32,7 @@ typing_extensions==4.12.2
 tzdata==2024.2
 uritemplate==4.1.1
 urllib3==2.3.0
+
+pip~=24.3.1
+protobuf~=5.29.3
+firebase-admin~=6.6.0

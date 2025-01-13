@@ -12,5 +12,7 @@ r.register('fees', views.FeeViewSet, basename='fees')
 urlpatterns = [
     path('', include(r.urls)),
     path('monthly-fees/fees/<int:fee_id>/', MonthlyFeeViewSet.as_view({'get': 'list'})),
-    path('monthly-fees/pending/', MonthlyFeeViewSet.as_view({'get': 'list_monthly_fee_pending'}))
+    path('monthly-fees/pending/', MonthlyFeeViewSet.as_view({'get': 'list_monthly_fee_pending'})),
+    path('chat/list/', views.chat_list_view, name='chat_list'),
+    path('chat/<int:receiver_id>/', views.chat_view, name='chat'),
 ]
