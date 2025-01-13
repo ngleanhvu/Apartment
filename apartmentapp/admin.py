@@ -8,8 +8,10 @@ from django.contrib import admin
 from django import forms
 from rest_framework import status
 from django.contrib import messages
+
+from apartment import settings
 from apartmentapp.models import Reflection, User, StorageLocker, Package, Feedback, FeedbackResponse, Survey, Question, \
-    QuestionOption, Response, MonthlyFee, Fee, Room, VehicleCard, RoomStatus, Transaction, PackageStatus
+    QuestionOption, Response, MonthlyFee, Fee, Room, VehicleCard, RoomStatus, Transaction, PackageStatus, FeedbackStatus
 from django.utils.safestring import mark_safe
 from apartmentapp.static.test import amount
 from django.urls import path
@@ -181,6 +183,13 @@ class PackageAdmin(admin.ModelAdmin):
     readonly_fields = ['thumbnail_preview']
     actions = ['change_status']
 
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+
+        obj.send_sms()
+
+
     @admin.action(description="Xác nhận đã nhận hàng")
     def change_status(self, request, queryset):
         for package in queryset:
@@ -216,6 +225,30 @@ class FeedbackAdmin(admin.ModelAdmin):
     list_display = ['title', 'description', 'status', 'resident']
     search_fields = ['resident__phone', 'status']
     filter = ['created_date']
+    actions = ['respond_action']
+
+    @admin.action(description="Xác nhận đã giải quyết phản ánh")
+    def respond_action(self, request, queryset):
+        resolved_count = 0
+        for feedback in queryset:
+            if feedback.status == FeedbackStatus.RESOLVED.value:
+                self.message_user(
+                    request,
+                    f"Feedback '{feedback.title}' đã được giải quyết!",
+                    level=messages.WARNING
+                )
+                continue
+
+            feedback.status = FeedbackStatus.RESOLVED.value
+            feedback.save()
+            resolved_count += 1
+
+        if resolved_count:
+            self.message_user(
+                request,
+                f"{resolved_count} phản ánh đã được đánh dấu là RESOLVED.",
+                level=messages.SUCCESS
+            )
 
 class FeedbackResponseAdmin(admin.ModelAdmin):
     list_display = ['feedback', 'response', 'admin']

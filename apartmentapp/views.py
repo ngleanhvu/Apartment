@@ -1,3 +1,4 @@
+from apartmentapp.paginations import PackagePagination
 from apartmentapp.serializers import StorageLockerSerializer, FeedbackSerializer, FeedbackResponseSerializer, \
     SurveySerializer, QuestionOptionSerializer, QuestionSerializer, MonthlyFeeSerializer, \
     FeeSerializer, ResponseSerializer, SurveyRetriveSerializer
@@ -350,6 +351,7 @@ class StorageLockerViewSet(viewsets.ViewSet, generics.ListAPIView):
 class PackageViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView):
     serializer_class = serializers.PackageSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = paginations.PackagePagination
 
     def get_permissions(self):
         if self.action=='list':
@@ -427,7 +429,7 @@ class SurveyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPI
         # Lưu câu trả lời cho mỗi câu hỏi
         for answer in answers:
             question_id = answer.get('question')
-            option_id = answer.get('options')
+            option_id = answer.get('option')
 
             question = Question.objects.get(id=question_id)
             option = QuestionOption.objects.get(id=option_id)

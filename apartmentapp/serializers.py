@@ -2,7 +2,7 @@ from django.conf import settings
 from rest_framework import serializers
 from apartmentapp.models import StorageLocker, Package, FeedbackResponse, Feedback, Survey, Question, \
     QuestionOption, Response, User, Fee, MonthlyFee, Room, Transaction, VehicleCard
-from twilio.rest import Client
+
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -46,9 +46,9 @@ class PackageSerializer(serializers.ModelSerializer):
         except User.DoesNotExist:
             raise serializers.ValidationError("Không tìm thấy người dùng với số điện thoại này")
 
+
     def create(self, validated_data):
         owner_phone=validated_data.pop('owner_phone')
-
         owner=User.objects.get(phone=owner_phone)
         storage_locker=owner.storage_locker
         package = Package.objects.create(
@@ -58,23 +58,6 @@ class PackageSerializer(serializers.ModelSerializer):
 
         self.send_sms(package)
         return package
-
-    def send_sms(self, package):
-        # Khởi tạo Twilio client
-        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-
-        message = f"From {package.recipient_name}, your package is ready for pickup in your storage locker {package.storage_locker.number}."
-        phone_number = f"+84{package.storage_locker.user.phone[1:]}" #Chuan so quoc te
-
-        try:
-            client.messages.create(
-                body=message,
-                from_=settings.TWILIO_PHONE_NUMBER,
-                to=phone_number
-            )
-
-        except Exception as e:
-            print(f"Error sending SMS: {e}")
 
 class StorageLockerSerializer(serializers.ModelSerializer):
     packages = PackageSerializer(many=True)
@@ -119,7 +102,7 @@ class SurveyRetriveSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Survey
-        fields=['title', 'description','start_date', 'end_date', 'questions']
+        fields=['id', 'title', 'description','start_date', 'end_date', 'questions']
 
 class ResponseSerializer(serializers.ModelSerializer):
     class Meta:

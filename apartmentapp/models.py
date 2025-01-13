@@ -8,7 +8,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from enum import Enum
 from django.db.models import CharField, ForeignKey, Model
-
+from twilio.rest import Client
+from apartment import  settings
 
 # Create your models here
 
@@ -120,6 +121,27 @@ class Package(BaseModel):
 
     def __str__(self):
         return self.description
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        self.send_sms()
+
+    def send_sms(self):
+        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+
+        message = f"From {self.recipient_name}, your package is ready for pickup in your storage locker #{self.storage_locker.number}."
+        phone_number = f"+84{self.storage_locker.user.phone[1:]}" #Chuan so quoc te
+
+        try:
+            client.messages.create(
+                body=message,
+                from_=settings.TWILIO_PHONE_NUMBER,
+                to=phone_number
+            )
+
+        except Exception as e:
+            print(f"Error sending SMS: {e}")
 
 class ReflectionStatus(Enum):
     APPROVED = 'Approved'
