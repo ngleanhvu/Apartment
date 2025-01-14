@@ -469,9 +469,9 @@ class SurveyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPI
 #             return [permissions.IsAuthenticated()]
 #         return [permissions.IsAdminUser()]
 #
-# class ResponseViewSet(viewsets.ModelViewSet):
-#     queryset = Response.objects.filter(active=True)
-#     serializer_class = ResponseSerializer
-#     permissions=[permissions.IsAdminUser]
+class ResponseViewSet(viewsets.ModelViewSet):
+    queryset = Response.objects.filter(active=True)
+    serializer_class = ResponseSerializer
+    permissions=[permissions.IsAdminUser]
 
 
