@@ -107,7 +107,7 @@ class SurveyRetriveSerializer(serializers.ModelSerializer):
 class ResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model=Response
-        fields = ['id', 'survey', 'resident', 'question_option']
+        fields = ['id', 'survey', 'resident','question', 'question_option']
         ordering=['-created_date']
 
 class ResponseCreateSerializer(serializers.ModelSerializer):

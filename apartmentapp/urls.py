@@ -18,9 +18,7 @@ r.register('surveys', views.SurveyViewSet, 'surveys')
 # r.register('questions', views.QuestionViewSet, 'questions')
 # r.register('question_options', views.QuestionOptionViewSet, 'question_options')
 # r.register('answers', views.AnswerViewSet, 'answers')
-# r.register('responses', views.ResponseViewSet, 'responses')
-
-
+r.register('responses', views.ResponseViewSet, 'responses')
 
 r.register('fees', views.FeeViewSet, basename='fees')
 urlpatterns = [

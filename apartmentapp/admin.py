@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Count
 from django.template.response import TemplateResponse
 from ckeditor.widgets import CKEditorWidget
 from calendar import month
@@ -26,9 +27,37 @@ class ApartmentAdminSite(admin.AdminSite):
         return [path('survey-stats/', self.stats_view)] + super().get_urls()
 
     def stats_view(self, request):
-        return TemplateResponse(request, 'admin/stats.html', {
+        surveys = Survey.objects.filter(active=True)
+        survey_id = request.GET.get('survey')
 
-        })
+        if not survey_id:
+            survey_id = surveys.first().id
+
+        responses = Response.objects.filter(survey__id=survey_id).values('question','question_option','question__content','question_option__content').annotate(counter=Count('resident', distinct=True)).order_by('question', 'question_option')
+        sum_resident_in_survey=Response.objects.filter(survey__id=survey_id).values('resident').distinct().count()
+
+        stats = {}
+        for response in responses:
+            question_content = response['question__content']
+
+            if question_content not in stats:
+                stats[question_content] = {
+                    'options': []
+                }
+
+            stats[question_content]['options'].append({
+                'content': response['question_option__content'],
+                'count': response['counter']
+            })
+
+
+        question_totals = {}
+        for question_content, data in stats.items():
+            question_totals[question_content] = sum(opt['count'] for opt in data['options'])
+
+        return TemplateResponse(request, 'admin/stats.html',
+                                {'stats': stats, 'question_totals': question_totals, 'surveys': surveys, 'sum' : sum_resident_in_survey})
+
 
 admin_site = ApartmentAdminSite('myapartment')
 
