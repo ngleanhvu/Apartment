@@ -5,10 +5,65 @@
 <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 
-<div class="container mt-5">
-    <h1 class="mb-4 text-center">Thống kê khảo sát</h1>
-    <form method="get" id="survey-form" class="d-flex align-items-center gap-2 mb-4">
+<script type="text/javascript">
+        google.charts.load("current", {packages: ["corechart"]});
+        google.charts.setOnLoadCallback(drawVisualization);
+
+        function drawVisualization() {
+            // Chuyển đổi dữ liệu từ Django view thành format phù hợp cho Google Charts
+            const stats = {{ stats|safe }};
+            const dataArray = [['Câu hỏi']];
+
+            // Lấy tất cả các option có thể có
+            const allOptions = new Set();
+            Object.values(stats).forEach(question => {
+                question.options.forEach(option => {
+                    allOptions.add(option.content);
+                });
+            });
+
+            // Thêm các options vào header
+            allOptions.forEach(option => {
+                dataArray[0].push(option);
+            });
+
+            // Thêm dữ liệu cho từng câu hỏi
+            Object.entries(stats).forEach(([question, data]) => {
+                const row = [question];
+
+                // Khởi tạo giá trị 0 cho tất cả options
+                allOptions.forEach(() => row.push(0));
+
+                // Điền số lượng người chọn cho từng option
+                data.options.forEach(option => {
+                    const optionIndex = dataArray[0].indexOf(option.content);
+                    if (optionIndex > 0) {
+                        row[optionIndex] = option.count;
+                    }
+                });
+
+                dataArray.push(row);
+            });
+
+            var data = google.visualization.arrayToDataTable(dataArray);
+
+            var options = {
+                title: 'Thống kê câu trả lời khảo sát',
+                vAxis: {title: 'Số lượng người trả lời'},
+                hAxis: {title: 'Câu hỏi'},
+                seriesType: 'bars',
+                height: 500
+            };
+
+            var chart = new google.visualization.ComboChart(document.getElementById('chart_stats'));
+            chart.draw(data, options);
+        }
+    </script>
+
+        <h1 class="mb-4 text-center">Thống kê khảo sát</h1>
+        <form method="get" id="survey-form" class="d-flex align-items-center gap-2 mb-4">
         <select name="survey" class="form-select w-auto">
             {% for s in surveys %}
                 <option value="{{ s.id }}">
@@ -19,23 +74,27 @@
         <button type="submit" class="btn btn-info ml-5">Thống kê</button>
     </form>
 
-    {% for question_content, data in stats.items %}
-        <div class="card mb-4">
-            <div class="card-body">
-                <h3 class="card-title">Câu hỏi: {{ question_content }}</h3>
-                {% for option in data.options %}
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span>Lựa chọn: {{ option.content }}</span>
-                        <span class="text-info">{{ option.count }} người chọn</span>
-                    </div>
-                {% endfor %}
-            </div>
-        </div>
-    {% empty %}
-        <div>
-            Chưa có dữ liệu khảo sát.
-        </div>
-    {% endfor %}
-    <h3 class="mb-4 text-right">Tổng số người tham gia khảo sát: {{sum}}</h3>
-</div>
+    <div id="chart_stats" style="width: 100%; height: 500px;"></div>
+    <h3 class="mb-4 text-right font-italic font-weight-bold text-info">Tổng số người tham gia khảo sát: {{sum}}</h3>
+
+<!--    <div class="col">-->
+<!--    {% for question_content, data in stats.items %}-->
+<!--        <div class="card mb-4">-->
+<!--            <div class="card-body">-->
+<!--                <h3 class="card-title">Câu hỏi: {{ question_content }}</h3>-->
+<!--                {% for option in data.options %}-->
+<!--                    <div class="d-flex justify-content-between align-items-center mb-2">-->
+<!--                        <span>Lựa chọn: {{ option.content }}</span>-->
+<!--                        <span class="text-info">{{ option.count }} người chọn</span>-->
+<!--                    </div>-->
+<!--                {% endfor %}-->
+<!--            </div>-->
+<!--        </div>-->
+<!--    {% empty %}-->
+<!--        <div>-->
+<!--            Chưa có dữ liệu khảo sát.-->
+<!--        </div>-->
+<!--    {% endfor %}-->
+<!--    -->
+<!--</div>-->
 {% endblock %}

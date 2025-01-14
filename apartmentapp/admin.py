@@ -55,6 +55,8 @@ class ApartmentAdminSite(admin.AdminSite):
         for question_content, data in stats.items():
             question_totals[question_content] = sum(opt['count'] for opt in data['options'])
 
+        print(stats)
+
         return TemplateResponse(request, 'admin/stats.html',
                                 {'stats': stats, 'question_totals': question_totals, 'surveys': surveys, 'sum' : sum_resident_in_survey})
 

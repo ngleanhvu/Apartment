@@ -1,3 +1,5 @@
+from oauthlib.uri_validate import query
+
 from apartmentapp.paginations import PackagePagination
 from apartmentapp.serializers import StorageLockerSerializer, FeedbackSerializer, FeedbackResponseSerializer, \
     SurveySerializer, QuestionOptionSerializer, QuestionSerializer, MonthlyFeeSerializer, \
@@ -360,7 +362,13 @@ class PackageViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIV
 
     def get_queryset(self):
         user = self.request.user
-        return Package.objects.filter(storage_locker__user=user)
+        query=Package.objects.filter(storage_locker__user=user)
+
+        q=self.request.query_params.get('q')
+        if q:
+            query = query.filter(sender_name__icontains=q)
+
+        return query
 
 
 class FeedbackViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView, generics.RetrieveAPIView):
