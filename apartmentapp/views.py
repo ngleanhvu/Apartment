@@ -1,20 +1,22 @@
 from datetime import datetime
 import stripe
 from cloudinary.uploader import upload_image, upload
+from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, status, generics, permissions
 from rest_framework.decorators import action, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 from apartment import settings
 from apartmentapp import serializers, paginations
 from apartmentapp.models import User, MonthlyFee, Room, Transaction, MonthlyFeeStatus, PaymentGateway, \
-    TransactionStatus, Fee, VehicleCard, Relationship
+    TransactionStatus, Fee, VehicleCard, Relationship, CommonNotification
 from cloudinary.exceptions import Error as CloudinaryError
 from apartmentapp.permissions import MonthlyFeePerms, TransactionPerms
-from apartmentapp.serializers import FeeSerializer
+from apartmentapp.serializers import FeeSerializer, CommonNotificationSerializer
 
 stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
 
@@ -351,10 +353,21 @@ class FeeViewSet(viewsets.ViewSet,
     queryset = Fee.objects.filter(active=True)
     serializer_class = FeeSerializer
 
+class CommonNotificationViewSet(viewsets.ViewSet,
+                         generics.ListAPIView,
+                         generics.RetrieveAPIView):
 
+    queryset = CommonNotification.objects.filter(active=True)
+    serializer_class = CommonNotificationSerializer
+
+def admin_check(user):
+    return user.is_superuser
+
+
+@user_passes_test(admin_check, login_url='/admin/login/')
 def chat_list_view(request):
     # Lấy danh sách tất cả thành viên trong chung cư
-    users = User.objects.filter(is_active=True)
+    users = User.objects.filter(is_active=True, is_superuser=False)
 
     return render(request, 'chat_list.html', {
         'users': users
@@ -370,3 +383,6 @@ def chat_view(request, receiver_id):
         'user_id': request.user.id,
         'user_name': request.user.full_name
     })
+
+
+

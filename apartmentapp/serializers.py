@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apartmentapp.models import User, Fee, MonthlyFee, Room, Transaction, VehicleCard
+from apartmentapp.models import User, Fee, MonthlyFee, Room, Transaction, VehicleCard, CommonNotification
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -71,3 +71,8 @@ class TransactionDetailSerializer(serializers.ModelSerializer):
             else:
                 data["thumbnail"] = thumbnail_url
         return data
+
+class CommonNotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommonNotification
+        fields = '__all__'

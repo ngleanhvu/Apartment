@@ -9,6 +9,7 @@ r.register('users', views.UserViewSet, basename='users')
 r.register('transactions', views.TransactionViewSet, basename='transactions')
 r.register('vehicle-cards', views.VehicleCardViewSet, basename='vehicle-cards')
 r.register('fees', views.FeeViewSet, basename='fees')
+r.register('notifications', views.CommonNotificationViewSet, basename='notifications')
 urlpatterns = [
     path('', include(r.urls)),
     path('monthly-fees/fees/<int:fee_id>/', MonthlyFeeViewSet.as_view({'get': 'list'})),

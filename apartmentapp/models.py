@@ -6,7 +6,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from enum import Enum
 
-from django.db.models import CharField
+from django.db.models import CharField, ForeignKey
 
 
 # Create your models here
@@ -146,32 +146,12 @@ class Reflection(BaseModel):
     def __str__(self):
         return self.title
 
-
-class DeliveryMethod(Enum):
-    APP = 'App'
-    SMS = 'SMS'
-
-    @classmethod
-    def choices(cls):
-        return [(x.value, x.name) for x in cls]
-
-
 class CommonNotification(BaseModel):
     title = models.CharField(max_length=100)
     content = RichTextField()
-    delivery_method = models.CharField(
-        max_length=20,
-        choices=DeliveryMethod.choices(),
-        default=DeliveryMethod.APP.value
-    )
 
     def __str__(self):
         return self.title
-
-
-class PrivateNotification(CommonNotification):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-
 
 class PaymentGateway(Enum):
     TRANSFER = 'Transfer'
@@ -248,3 +228,5 @@ class Transaction(BaseModel):
 
     def __str__(self):
         return self.user.full_name
+
+
