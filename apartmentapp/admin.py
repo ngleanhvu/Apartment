@@ -4,18 +4,21 @@ from django.template.response import TemplateResponse
 from ckeditor.widgets import CKEditorWidget
 from calendar import month
 from datetime import datetime
+
+import requests
 from ckeditor_uploader.widgets import CKEditorUploadingWidget
 from django.contrib import admin
 from django import forms
 from rest_framework import status
-from django.contrib import messages
 
-from apartment import settings
+from django.contrib import messages
 from apartmentapp.models import Reflection, User, StorageLocker, Package, Feedback, FeedbackResponse, Survey, Question, \
     QuestionOption, Response, MonthlyFee, Fee, Room, VehicleCard, RoomStatus, Transaction, PackageStatus, FeedbackStatus
 from django.utils.safestring import mark_safe
-from apartmentapp.static.test import amount
 from django.urls import path
+
+from apartmentapp.models import Reflection, User, MonthlyFee, Fee, Room, VehicleCard, RoomStatus, Transaction, \
+    CommonNotification
 
 
 # Register your models here.
@@ -125,6 +128,7 @@ def calculate_parking_fee(modeladmin, request, queryset):
     except Exception as ex:
         modeladmin.message_user(request, f"Error: {str(ex)}", level="error")
 
+
 class ReflectionForm(forms.ModelForm):
     content = forms.CharField(widget=CKEditorUploadingWidget)
 
@@ -194,13 +198,31 @@ class MonthlyFeeInline(admin.TabularInline):
 class TransactionAdmin(admin.ModelAdmin):
     model = Transaction
     inlines = [MonthlyFeeInline]
-    fields = ['amount', 'payment_gateway', 'user']
+    # fields = ['amount', 'payment_gateway', 'user', 'thumbnail']
+    readonly_fields = ['avatar']
 
-    def thumbnail(self, monthly_fee):
+    def avatar(self, transaction):
         return mark_safe("<img src='{img_url}' alt='{alt}' width='120' />".format(
-            img_url=monthly_fee.thumbnail.url,
-            alt='Service Fee'
+            img_url=transaction.thumbnail.url,
+            alt=transaction.user.full_name
         ))
+
+
+EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
+
+def send_push_notification(expo_push_token, title, message):
+    payload = {
+        "to": expo_push_token,
+        "title": title,
+        "body": message,
+    }
+    response = requests.post(EXPO_PUSH_URL, json=payload)
+    return response.json()
+
+class CommonNotificationAdmin(admin.ModelAdmin):
+    class Meta:
+        model = CommonNotification
+        fields = '__all__'
 
 class StorageLockerAdmin(admin.ModelAdmin):
     list_display = ['number', 'created_date', 'user' ,'active']
@@ -337,6 +359,7 @@ admin_site.register(Fee, FeeAdmin)
 admin_site.register(Room, RoomAdmin)
 admin_site.register(VehicleCard, VehicleCardAdmin)
 admin_site.register(Transaction, TransactionAdmin)
+admin_site.register(CommonNotification, CommonNotificationAdmin)
 admin_site.register(StorageLocker, StorageLockerAdmin)
 admin_site.register(Package, PackageAdmin)
 #

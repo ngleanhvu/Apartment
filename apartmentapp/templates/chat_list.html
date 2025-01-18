@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat List</title>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 1.8em;
+        }
+
+        .container {
+            display: flex;
+            height: calc(100vh - 60px); /* Adjust for header */
+            padding: 20px;
+        }
+
+        #member-list {
+            width: 250px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-right: 20px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        #member-list h3 {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+
+        #member-list ul {
+            padding: 0;
+            list-style: none;
+        }
+
+        #member-list li {
+            background-color: #f1f1f1;
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #member-list li:hover {
+            background-color: #e2e6ea;
+        }
+
+        #chat-area {
+            flex-grow: 1;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        #chat-area h3 {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+
+        .message-container {
+            margin-bottom: 15px;
+        }
+
+        .message {
+            background-color: #f1f1f1;
+            padding: 12px;
+            border-radius: 8px;
+            max-width: 70%;
+            margin-bottom: 8px;
+        }
+
+        .sender {
+            text-align: right;
+            background-color: #007bff;
+            color: white;
+        }
+
+        .receiver {
+            text-align: left;
+            background-color: #e9ecef;
+            color: #333;
+        }
+
+        .timestamp {
+            font-size: 0.8em;
+            color: #6c757d;
+            text-align: right;
+            margin-top: 5px;
+        }
+
+        .input-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        .input-area input {
+            width: 80%;
+            padding: 10px;
+            font-size: 1em;
+            border: 2px solid #007bff;
+            border-radius: 20px;
+            outline: none;
+        }
+
+        .input-area button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .input-area button:hover {
+            background-color: #0056b3;
+        }
+
+        .chat-wrapper {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
+</head>
+<body>
+
+<header>Chat with Members</header>
+
+<div class="container">
+    <!-- Sidebar with Member List -->
+    <div id="member-list">
+        <h3>Members</h3>
+        <ul>
+            {% for user in users %}
+                <li>
+                    <a href="{% url 'chat' receiver_id=user.id %}" style="text-decoration: none; color: inherit;">
+                        {{ user.full_name }}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Chat Area -->
+    <div id="chat-area">
+        <div class="chat-wrapper">
+            <h3>Chat Area</h3>
+            {% block chat_content %}
+                <!-- Chat content will be dynamically loaded here -->
+            {% endblock %}
+
+            <div class="input-area">
+                <input type="text" id="message-input" placeholder="Type a message" />
+                <button id="send-btn">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize Firebase
+    const firebaseConfig = {
+        apiKey: "AIzaSyCmPue833ouOySJQICnd__80_1BvoDdgsc",
+        authDomain: "apartment-app-da74a.firebaseapp.com",
+        projectId: "apartment-app-da74a",
+        storageBucket: "apartment-app-da74a.firebasestorage.app",
+        messagingSenderId: "1055959216696",
+        appId: "1:1055959216696:web:9bf4586476dc9af1c56ccd",
+        measurementId: "G-0ER1X04Y2W"
+    };
+
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+</script>
+
+</body>
+</html>

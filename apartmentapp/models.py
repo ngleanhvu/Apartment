@@ -1,15 +1,12 @@
-from contextlib import nullcontext
-from datetime import datetime, timedelta
-from random import choice
-from dateutil.relativedelta import relativedelta
+
 from ckeditor.fields import RichTextField
 from cloudinary.models import CloudinaryField
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from enum import Enum
-from django.db.models import CharField, ForeignKey, Model
 from twilio.rest import Client
 from apartment import  settings
+
 
 # Create your models here
 
@@ -39,7 +36,6 @@ class User(AbstractUser):
     citizen_card = models.CharField(max_length=15, null=False, unique=True)
     thumbnail = CloudinaryField(null=True, blank=True)
     changed_password = models.BooleanField(default=False)
-
     room = models.ForeignKey('Room', on_delete=models.CASCADE, null=True)
 
     def __str__(self):
@@ -90,7 +86,7 @@ class VehicleCard(BaseModel):
 
 class StorageLocker(BaseModel):
     number = models.CharField(max_length=50)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='storage_locker')
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.number
@@ -152,6 +148,7 @@ class ReflectionStatus(Enum):
     def choices(cls):
         return [(x.value, x.name) for x in cls]
 
+
 class Reflection(BaseModel):
     title = models.CharField(max_length=100)
     content = RichTextField()
@@ -179,19 +176,9 @@ class DeliveryMethod(Enum):
 class CommonNotification(BaseModel):
     title = models.CharField(max_length=100)
     content = RichTextField()
-    delivery_method = models.CharField(
-        max_length=20,
-        choices=DeliveryMethod.choices(),
-        default=DeliveryMethod.APP.value
-    )
 
     def __str__(self):
         return self.title
-
-
-class PrivateNotification(CommonNotification):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-
 
 class PaymentGateway(Enum):
     TRANSFER = 'Transfer'
@@ -241,7 +228,10 @@ class MonthlyFee(BaseModel):
     room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True)
     fee = models.ForeignKey(Fee, on_delete=models.SET_NULL, null=True)
     description = models.CharField(max_length=100)
-    transaction = models.ForeignKey('Transaction', on_delete=models.CASCADE, null=True, blank=True)
+    transaction = models.ForeignKey('Transaction',
+                                    on_delete=models.CASCADE,
+                                    null=True, blank=True,
+                                    related_name='monthly_fees')
 
     class Meta:
         unique_together = ('room', 'fee', 'created_date', 'status', 'transaction')
@@ -338,6 +328,8 @@ class Response(BaseModel):
 
     def __str__(self):
         return f"{self.resident.full_name}'s response to {self.survey.title}"
+
+
 
 
 

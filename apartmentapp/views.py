@@ -9,26 +9,29 @@ from threading import activeCount
 from tkinter.ttk import Treeview
 from cloudinary.provisioning import users
 from cloudinary.uploader import upload_image, upload
-from cloudinary.exceptions import Error as CloudinaryError
-from django.db import transaction
 
 from apartmentapp.models import StorageLocker, Package, PackageStatus, Feedback, FeedbackResponse, FeedbackStatus, \
     Survey, Question, QuestionOption, User, MonthlyFee, Room, Transaction, MonthlyFeeStatus, PaymentGateway, \
-    TransactionStatus, Fee, VehicleCard, Relationship, Response
+    TransactionStatus, Fee, VehicleCard, Relationship, Response, CommonNotification
 from rest_framework.views import APIView
 
+from django.contrib.auth.decorators import user_passes_test
+from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, status, generics, permissions
 from rest_framework.decorators import action, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response as RestResponse
 
 
 from apartment import settings
 from apartmentapp import serializers, paginations
+from cloudinary.exceptions import Error as CloudinaryError
+from apartmentapp.permissions import MonthlyFeePerms, TransactionPerms
+from apartmentapp.serializers import FeeSerializer, CommonNotificationSerializer
 
-from apartmentapp.permissions import MonthlyFeePerms
 
 
 
@@ -40,7 +43,8 @@ stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
 
 # Request 1
 class UserViewSet(viewsets.ViewSet,
-                  generics.RetrieveAPIView):
+                  generics.RetrieveAPIView,
+                  generics.ListAPIView):
     queryset = User.objects.filter(is_active=True)
     serializer_class = serializers.UserSerializer
 
@@ -107,16 +111,37 @@ class TransactionViewSet(viewsets.ViewSet,
     def get_queryset(self):
         user = self.request.user
         query = self.queryset
-        query = query.filter(user=user, status=TransactionStatus.SUCCESS)
-        fee_id = self.request.query_params.get('fee_id')
+        query = query.filter(user=user, status=TransactionStatus.SUCCESS.value)
+
+        fee_id = self.request.query_params.get('feeId')
         if fee_id:
-            query= query.filter(monthlyfee__fee_id=fee_id)
+            query = query.filter(monthly_fees__fee_id=fee_id)
 
         q = self.request.query_params.get("q")
         if q:
             query = query.filter(description__icontains=q)
 
+        month = self.request.query_params.get("month")
+        if month:
+            filter_month_year = datetime.strptime(month, "%Y-%m").date()
+            query = query.filter(
+                created_date__month=filter_month_year.month,
+                created_date__year=filter_month_year.year
+            )
+
         return query
+
+    @action(methods=['get'], detail=True, url_path='detail', permission_classes=[TransactionPerms])
+    def get_transaction_detail(self, request, pk):
+        try:
+            queryset = self.queryset.filter(id=pk)
+            print(str(queryset.query))
+
+            return Response(serializers.TransactionDetailSerializer(queryset.first()).data,
+                            status=status.HTTP_200_OK)
+        except Exception as ex:
+            print(ex)
+            return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
     # Stripe payment
@@ -136,6 +161,8 @@ class TransactionViewSet(viewsets.ViewSet,
             if not monthly_fees.exists():
                 return RestResponse({'msg': 'No monthly fee need to pay'})
 
+            monthly_fee = monthly_fees.first()
+
             data = []
 
             total_amount = sum(fee.amount for fee in monthly_fees)
@@ -154,16 +181,14 @@ class TransactionViewSet(viewsets.ViewSet,
 
                 data.append(y)
 
-            transaction = Transaction.objects.create(amount=total_amount,
-                                                     user=request.user,
-                                                     description=f"Phí chung cư hằng tháng của phòng {request.user.room}",
-                                                     payment_gateway=PaymentGateway.STRIPE.value,
-                                                     status=TransactionStatus.PENDING.value)
-
             payment_intent = stripe.PaymentIntent.create(
                 amount=int(total_amount * 100),  # Chuyển đổi sang cent
                 currency='vnd',
-                metadata={'transaction_id': transaction.id, 'user_id': request.user.id, 'ids': ids},
+                metadata={'user_id': request.user.id,
+                          'ids': ids,
+                          'total_amount': total_amount,
+                          "month": monthly_fee.created_date.month,
+                          "year": monthly_fee.created_date.year},
                 statement_descriptor_suffix="Amount"
             )
 
@@ -190,26 +215,28 @@ class TransactionViewSet(viewsets.ViewSet,
             return RestResponse({'error': 'Invalid Signature'}, status=status.HTTP_400_BAD_REQUEST)
 
         session = event["data"]["object"]
-        transaction_id = session["metadata"].get("transaction_id")
-        user_id = session["metadata"].get("user_id")
+        total_amount = session["metadata"].get("total_amount")
+        month = session["metadata"].get("month")
+        year = session["metadata"].get("year")
         ids = session["metadata"].get("ids")
-        print(transaction_id, user_id, ids)
-        transaction = Transaction.objects.filter(id=transaction_id).first()
-        print(transaction)
         print(event["type"])
+
         try:
             if event["type"] == "payment_intent.succeeded":
-                user = User.objects.filter(id=user_id).first()
-                print(user)
-                (MonthlyFee.objects.filter(room=user.room, status=MonthlyFeeStatus.PENDING.value, id__in=ids)
+
+                transaction = Transaction.objects.create(amount=total_amount,
+                                                         user=request.user,
+                                                         description=f"Phí chung cư tháng {month} năm {year} phòng {request.user.room}",
+                                                         payment_gateway=PaymentGateway.STRIPE.value,
+                                                         status=TransactionStatus.SUCCESS.value)
+
+                (MonthlyFee.objects.filter(room=request.user.room, status=MonthlyFeeStatus.PENDING.value, id__in=ids)
                  .update(status=MonthlyFeeStatus.PAID.value, transaction=transaction))
 
                 transaction.status = TransactionStatus.SUCCESS.value
                 transaction.save()
                 return RestResponse({'msg': 'Payment success'}, status=status.HTTP_200_OK)
         except Exception as ex:
-            transaction.status = TransactionStatus.FAIL.value
-            transaction.save()
             print(ex)
             return RestResponse({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -228,24 +255,24 @@ class TransactionViewSet(viewsets.ViewSet,
             if not monthly_fees.exists():
                 return RestResponse({'msg': 'No monthly fee need to pay'})
 
+            monthly_fee = monthly_fees.first()
+
             total_amount = sum(fee.amount for fee in monthly_fees)
 
             transaction = Transaction(amount=total_amount,
                                                      user=request.user,
-                                                     description=f"Phí dịch vụ của phòng {request.user.room}",
+                                                     description=f"Phí chung cư tháng {monthly_fee.created_date.month} năm {monthly_fee.created_date.year} phòng {request.user.room}",
                                                      payment_gateway=PaymentGateway.MOMO.value,
                                                      status=TransactionStatus.SUCCESS.value)
-
-            transaction.save()
 
             try:
                 upload_result = upload(thumbnail)
                 transaction.thumbnail = upload_result['secure_url']
             except CloudinaryError as ex:
-                transaction.status = TransactionStatus.FAIL.value
-                transaction.save()
                 return RestResponse({'error': 'Upload thumbnail fail'},
                                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            transaction.save()
 
             monthly_fees.update(status=MonthlyFeeStatus.PAID.value, transaction=transaction)
 
@@ -281,12 +308,8 @@ class VehicleCardViewSet(viewsets.ViewSet,
     model = VehicleCard
     serializer_class = serializers.VehicleCardSerializer
     queryset = VehicleCard.objects.filter(active=True)
-
-    def get_permissions(self):
-        if self.action.__eq__('list'):
-            return [IsAdminUser(), IsAuthenticated()]
-
-        return [IsAuthenticated()]
+    permission_classes = [IsAuthenticated]
+    pagination_class = paginations.MonthlyFeePagination
 
 
     @action(methods=['post'], detail=False, url_path='register')
@@ -296,9 +319,13 @@ class VehicleCardViewSet(viewsets.ViewSet,
             print(user)
             data = request.data
             print(data)
-            full_name = data.get('full_name')
-            citizen_card = data.get('citizen_card')
-            vehicle_number = data.get('vehicle_number')
+            full_name = data.get('fullName')
+            citizen_card = data.get('citizenCard')
+            vehicle_number = data.get('vehicleNumber')
+
+            if not full_name or not citizen_card or not vehicle_number:
+                return RestResponse({'error': 'Vui lòng điền đầy đủ thông tin'},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             v = VehicleCard(full_name=full_name,
                             citizen_card=citizen_card,
@@ -310,9 +337,10 @@ class VehicleCardViewSet(viewsets.ViewSet,
 
             v.save()
 
-            return RestResponse({serializers.VehicleCardSerializer(v).data},
+            return RestResponse(serializers.VehicleCardSerializer(v).data,
                             status=status.HTTP_201_CREATED)
         except Exception as ex:
+            print(ex)
             return RestResponse({'error': str(ex)},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -321,19 +349,63 @@ class VehicleCardViewSet(viewsets.ViewSet,
         try:
 
             user = request.user
-            vehicle_cards = VehicleCard.objects.filter(user=user).all()
+            vehicle_cards = VehicleCard.objects.filter(user=user)
 
-            return RestResponse({'vehicle_cards': serializers.VehicleCardSerializer(vehicle_cards, many=True).data},
-                            status=status.HTTP_200_OK)
+            q = request.query_params.get('q')
+
+            if q:
+                vehicle_cards = vehicle_cards.filter(vehicle_number__icontains=q)
+
+            paginator = self.pagination_class()
+            result_page = paginator.paginate_queryset(vehicle_cards, request)
+
+
+            return paginator.get_paginated_response(
+                        serializers.VehicleCardSerializer(result_page, many=True).data
+                    )
 
         except Exception as ex:
-            return RestResponse({'error': str(ex)},
+            return RestResponse({'error': f"An error occurred: {str(ex)}"},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class FeeViewSet(viewsets.ViewSet,
                  generics.ListAPIView):
+
     queryset = Fee.objects.filter(active=True)
     serializer_class = FeeSerializer
+
+class CommonNotificationViewSet(viewsets.ViewSet,
+                         generics.ListAPIView,
+                         generics.RetrieveAPIView):
+
+    queryset = CommonNotification.objects.filter(active=True)
+    serializer_class = CommonNotificationSerializer
+
+def admin_check(user):
+    return user.is_superuser
+
+
+@user_passes_test(admin_check, login_url='/admin/login/')
+def chat_list_view(request):
+    # Lấy danh sách tất cả thành viên trong chung cư
+    users = User.objects.filter(is_active=True, is_superuser=False)
+
+    return render(request, 'chat_list.html', {
+        'users': users
+    })
+
+
+def chat_view(request, receiver_id):
+    receiver = User.objects.get(id=receiver_id)
+
+    return render(request, 'chat.html', {
+        'receiver_id': receiver.id,
+        'receiver_name': receiver.full_name,
+        'user_id': request.user.id,
+        'user_name': request.user.full_name
+    })
+
+
 
 
 class StorageLockerViewSet(viewsets.ViewSet, generics.ListAPIView):

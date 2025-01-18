@@ -1,9 +1,7 @@
-from django.conf import settings
+
 from rest_framework import serializers
 from apartmentapp.models import StorageLocker, Package, FeedbackResponse, Feedback, Survey, Question, \
-    QuestionOption, Response, User, Fee, MonthlyFee, Room, Transaction, VehicleCard
-
-
+    QuestionOption, Response, User, Fee, MonthlyFee, Room, Transaction, VehicleCard, CommonNotification
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -186,3 +184,25 @@ class VehicleCardSerializer(serializers.ModelSerializer):
         model = VehicleCard
         fields = '__all__'
 
+
+class TransactionDetailSerializer(serializers.ModelSerializer):
+    monthly_fees = MonthlyFeeSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Transaction
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.thumbnail:
+            thumbnail_url = str(instance.thumbnail)
+            if thumbnail_url.startswith("image/upload/"):
+                data["thumbnail"] = thumbnail_url.replace("image/upload/", "")
+            else:
+                data["thumbnail"] = thumbnail_url
+        return data
+
+class CommonNotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommonNotification
+        fields = '__all__'
