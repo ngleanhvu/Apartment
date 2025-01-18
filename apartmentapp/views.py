@@ -21,7 +21,6 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, status, generics, permissions
 from rest_framework.decorators import action, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response as RestResponse
 

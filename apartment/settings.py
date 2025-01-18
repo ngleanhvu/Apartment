@@ -51,7 +51,8 @@ INSTALLED_APPS = [
     'drf_yasg',
     'oauth2_provider',
     'corsheaders',
-    'twilio'
+    'twilio',
+
 ]
 
 REST_FRAMEWORK = {
@@ -102,7 +103,7 @@ WSGI_APPLICATION = 'apartment.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'apartment_db_v2',
+        'NAME': 'apartment_db_v3',
         'USER': 'root',
         'PASSWORD': '1234',
     }
