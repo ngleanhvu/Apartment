@@ -34,7 +34,7 @@ TWILIO_AUTH_TOKEN = '077a939148d677c3f3963c548d517989'
 TWILIO_PHONE_NUMBER = '+12299220537'
 
 
-ALLOWED_HOSTS = ['192.168.1.5', 'localhost', '127.0.0.1', '10.0.2.2']
+ALLOWED_HOSTS = ['192.168.1.5', 'localhost', '127.0.0.1', '10.0.2.2', 'e945-2402-800-6318-905-a484-16c8-b617-2c82.ngrok-free.app']
 
 # Application definition
 

@@ -274,11 +274,15 @@ class PackageAdmin(admin.ModelAdmin):
         return "No image"
     display_thumbnail.short_description = 'Thumbnail'
 
+class FeedBackAdminInline(admin.StackedInline):
+    model = FeedbackResponse
+
 class FeedbackAdmin(admin.ModelAdmin):
     list_display = ['title', 'description', 'status', 'resident']
     search_fields = ['resident__phone', 'status']
     filter = ['created_date']
     actions = ['respond_action']
+    inlines = [FeedBackAdminInline]
 
     @admin.action(description="Xác nhận đã giải quyết phản ánh")
     def respond_action(self, request, queryset):

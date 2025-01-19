@@ -1,3 +1,6 @@
+import json
+
+from PIL.ImImagePlugin import number
 from oauthlib.uri_validate import query
 
 from apartmentapp.paginations import PackagePagination
@@ -20,7 +23,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, status, generics, permissions
 from rest_framework.decorators import action, permission_classes
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response as RestResponse
 
@@ -86,7 +89,9 @@ class UserViewSet(viewsets.ViewSet,
 
             user.set_password(password)
             user.changed_password = True
+            locker = StorageLocker(number=user.username+user.phone, user=user)
             user.save()
+            locker.save()
 
             return RestResponse({'msg': 'Active user success!'},
                             status=status.HTTP_200_OK)
@@ -136,69 +141,87 @@ class TransactionViewSet(viewsets.ViewSet,
             queryset = self.queryset.filter(id=pk)
             print(str(queryset.query))
 
-            return Response(serializers.TransactionDetailSerializer(queryset.first()).data,
+            return RestResponse(serializers.TransactionDetailSerializer(queryset.first()).data,
                             status=status.HTTP_200_OK)
-        except Exception as ex:
-            print(ex)
-            return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-    # Stripe payment
-    @csrf_exempt
-    @action(methods=['post'], detail=False, url_path='stripe', permission_classes=[IsAuthenticated])
-    def create_checkout_session_stripe(self, request):
-        try:
-            ids = request.data.get('ids')
-            ids = eval(ids)
-            monthly_fees = MonthlyFee.objects.filter(
-                room=request.user.room,
-                status=MonthlyFeeStatus.PENDING.value,
-                id__in = ids
-            )
-
-
-            if not monthly_fees.exists():
-                return RestResponse({'msg': 'No monthly fee need to pay'})
-
-            monthly_fee = monthly_fees.first()
-
-            data = []
-
-            total_amount = sum(fee.amount for fee in monthly_fees)
-
-            for item in monthly_fees:
-                y = {
-                    'price_data': {
-                        'currency': 'vnd',
-                        'product_data': {
-                            'name': f"{item.fee.name} của phòng {item.room.room_number}",
-                        },
-                        'unit_amount': int(item.amount),
-                    },
-                    'quantity': 1,
-                }
-
-                data.append(y)
-
-            payment_intent = stripe.PaymentIntent.create(
-                amount=int(total_amount * 100),  # Chuyển đổi sang cent
-                currency='vnd',
-                metadata={'user_id': request.user.id,
-                          'ids': ids,
-                          'total_amount': total_amount,
-                          "month": monthly_fee.created_date.month,
-                          "year": monthly_fee.created_date.year},
-                statement_descriptor_suffix="Amount"
-            )
-
-            # Trả về client_secret thay vì sessionId
-            return RestResponse({"clientSecret": payment_intent.client_secret}, status=status.HTTP_200_OK)
-
         except Exception as ex:
             print(ex)
             return RestResponse({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(methods=['post'], detail=False, url_path='webhook/stripe')
+
+    @csrf_exempt
+    @action(methods=['post'], detail=False, url_path='stripe', permission_classes=[IsAuthenticated])
+    def create_checkout_session_stripe(self, request):
+        try:
+            # Lấy danh sách IDs từ request
+            ids = request.data.get('ids')
+
+            if not ids:
+                return RestResponse({'error': 'No IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Sử dụng json.loads để parse danh sách IDs
+            try:
+                ids = json.loads(ids)
+            except json.JSONDecodeError:
+                return RestResponse({'error': 'Invalid IDs format. Must be a JSON array.'},
+                                    status=status.HTTP_400_BAD_REQUEST)
+
+            # Lọc các MonthlyFees theo điều kiện
+            monthly_fees = MonthlyFee.objects.filter(
+                room=request.user.room,
+                status=MonthlyFeeStatus.PENDING.value,
+                id__in=ids
+            )
+
+            if not monthly_fees.exists():
+                return RestResponse({'msg': 'No monthly fee to pay'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Tính tổng tiền
+            total_amount = sum(fee.amount for fee in monthly_fees)
+
+            # Chuẩn bị dữ liệu thanh toán
+            line_items = [
+                {
+                    'price_data': {
+                        'currency': 'vnd',
+                        'product_data': {
+                            'name': f"{fee.fee.name} của phòng {fee.room.room_number}",
+                        },
+                        'unit_amount': int(fee.amount * 100),  # Stripe yêu cầu đơn vị là cent
+                    },
+                    'quantity': 1,
+                }
+                for fee in monthly_fees
+            ]
+
+            # Lấy thông tin tháng và năm của khoản phí đầu tiên
+            first_fee = monthly_fees.first()
+            month = first_fee.created_date.month
+            year = first_fee.created_date.year
+
+            # Tạo PaymentIntent
+            payment_intent = stripe.PaymentIntent.create(
+                amount=int(total_amount * 100),  # Chuyển đổi sang cent
+                currency='vnd',
+                metadata={
+                    'user_id': str(request.user.id),
+                    'ids': ','.join(map(str, ids)),  # Chuyển danh sách IDs thành chuỗi
+                    'total_amount': str(total_amount),
+                    'month': str(month),
+                    'year': str(year),
+                    'room_id': str(request.user.room.id),
+                    'room_name': str(request.user.room.room_number)
+                },
+                statement_descriptor_suffix="Monthly Fees"
+            )
+
+            # Trả về client_secret cho frontend
+            return RestResponse({"clientSecret": payment_intent.client_secret}, status=status.HTTP_200_OK)
+
+        except Exception as ex:
+            print(f"Error in create_checkout_session_stripe: {ex}")
+            return RestResponse({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(methods=['post'], detail=False, url_path='webhook/stripe', permission_classes=[])
     def stripe_webhook(self, request):
         payload = request.body.decode(
             'utf-8')
@@ -218,18 +241,23 @@ class TransactionViewSet(viewsets.ViewSet,
         month = session["metadata"].get("month")
         year = session["metadata"].get("year")
         ids = session["metadata"].get("ids")
+        room_id = session["metadata"].get("room_id")
+        user_id = session["metadata"].get("user_id")
+        room_number = session["metadata"].get("room_name")
+        print(user_id)
+        print(room_id)
         print(event["type"])
 
         try:
             if event["type"] == "payment_intent.succeeded":
 
                 transaction = Transaction.objects.create(amount=total_amount,
-                                                         user=request.user,
-                                                         description=f"Phí chung cư tháng {month} năm {year} phòng {request.user.room}",
+                                                         user_id=user_id,
+                                                         description=f"Phí chung cư tháng {month} năm {year} phòng {room_number}",
                                                          payment_gateway=PaymentGateway.STRIPE.value,
                                                          status=TransactionStatus.SUCCESS.value)
 
-                (MonthlyFee.objects.filter(room=request.user.room, status=MonthlyFeeStatus.PENDING.value, id__in=ids)
+                (MonthlyFee.objects.filter(room_id=room_id, status=MonthlyFeeStatus.PENDING.value, id__in=ids)
                  .update(status=MonthlyFeeStatus.PAID.value, transaction=transaction))
 
                 transaction.status = TransactionStatus.SUCCESS.value
