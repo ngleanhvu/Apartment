@@ -154,7 +154,6 @@ class ReflectionAdmin(admin.ModelAdmin):
 
 class UserAdmin(admin.ModelAdmin):
     readonly_fields = ['avatar']
-
     def avatar(self, user):
         return mark_safe("<img src='{img_url}' alt='{alt}' width='120' />".format(
             img_url=user.thumbnail.url,

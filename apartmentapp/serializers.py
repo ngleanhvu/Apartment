@@ -33,7 +33,7 @@ class PackageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Package
-        fields = ['id', 'sender_name','recipient_name', 'owner_phone','quantity_items','thumbnail','description', 'status']
+        fields = ['id', 'sender_name','recipient_name', 'owner_phone','quantity_items','thumbnail','description', 'status', 'pickup_time']
 
     def validate_owner_package_by_phone(self, value):
         try:

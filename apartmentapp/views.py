@@ -59,7 +59,6 @@ class UserViewSet(viewsets.ViewSet,
         password = request.data.get('password')
         retype_password = request.data.get('retype_password')
         thumbnail = request.FILES.get('avatar')
-
         print(username, password, retype_password, thumbnail)
 
         if not username or not password or not retype_password or not thumbnail:
@@ -85,7 +84,9 @@ class UserViewSet(viewsets.ViewSet,
                                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             user.set_password(password)
+            locker = StorageLocker(number=user.username + user.phone, user=user)
             user.changed_password = True
+            locker.save()
             user.save()
 
             return RestResponse({'msg': 'Active user success!'},
@@ -489,9 +490,37 @@ class SurveyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPI
         return SurveySerializer
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'submit_response']:
+        if self.action in ['list', 'retrieve', 'submit_response','get_responses']:
             return [permissions.IsAuthenticated()]
         return [permissions.IsAdminUser()]
+
+
+    @action(detail=True, methods=['GET'])
+    def get_responses(self, request, pk=None):
+        survey = self.get_object()
+        responses = Response.objects.filter(
+            survey=survey,
+            resident=request.user
+        ).select_related('question', 'question_option')
+
+        if not responses.exists():
+            return RestResponse(
+                {"message": "No responses found for this survey"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        answers = [
+            {
+                "question": response.question.id,
+                "option": response.question_option.id,
+            }
+            for response in responses
+        ]
+
+        return RestResponse(
+            {"answers": answers},
+            status=status.HTTP_200_OK
+        )
 
 
     @action(detail=True, methods=['POST'])
