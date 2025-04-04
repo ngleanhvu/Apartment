@@ -103,9 +103,10 @@ WSGI_APPLICATION = 'apartment.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'apartment_db_v3',
-        'USER': 'root',
-        'PASSWORD': '1234',
+        'NAME': 'apartment-mysql',
+        'USER': 'django_user_01',
+        'PASSWORD': 'Vu1234@@@',
+        'HOST': '10.0.3.253'
     }
 }
 
