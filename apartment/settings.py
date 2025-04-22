@@ -34,7 +34,7 @@ TWILIO_AUTH_TOKEN = '077a939148d677c3f3963c548d517989'
 TWILIO_PHONE_NUMBER = '+12299220537'
 
 
-ALLOWED_HOSTS = ['192.168.1.5', 'localhost', '127.0.0.1', '10.0.2.2', 'e945-2402-800-6318-905-a484-16c8-b617-2c82.ngrok-free.app']
+ALLOWED_HOSTS = ["*"]
 
 # Application definition
 
@@ -103,10 +103,11 @@ WSGI_APPLICATION = 'apartment.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'apartment-mysql',
-        'USER': 'django_user_01',
-        'PASSWORD': 'Vu1234@@@',
-        'HOST': '10.0.3.253'
+        'NAME': 'apartment_mysql_database',
+        'USER': 'admin',
+        'PASSWORD': '12345678',
+        'HOST': 'apartment-mysql-database.cti42uw2yitb.us-east-1.rds.amazonaws.com',
+        'PORT': '3306',
     }
 }
 

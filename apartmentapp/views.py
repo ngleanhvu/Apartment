@@ -9,7 +9,6 @@ from apartmentapp.serializers import StorageLockerSerializer, FeedbackSerializer
     FeeSerializer, ResponseSerializer, SurveyRetriveSerializer
 from datetime import datetime
 from threading import activeCount
-from tkinter.ttk import Treeview
 from cloudinary.provisioning import users
 from cloudinary.uploader import upload_image, upload
 
