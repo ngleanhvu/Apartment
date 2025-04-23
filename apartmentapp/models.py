@@ -229,7 +229,7 @@ class MonthlyFee(BaseModel):
     fee = models.ForeignKey(Fee, on_delete=models.SET_NULL, null=True)
     description = models.CharField(max_length=100)
     transaction = models.ForeignKey('Transaction',
-                                    on_delete=models.CASCADE,
+                                    on_delete=models.PROTECT,
                                     null=True, blank=True,
                                     related_name='monthly_fees')
 
@@ -324,7 +324,7 @@ class Response(BaseModel):
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='responses')
     question_option=models.ForeignKey(QuestionOption, related_name='responses', on_delete=models.CASCADE)
     survey=models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='responses')
-    resident=models.ForeignKey(User, on_delete=models.PROTECT, related_name='responses')
+    resident=models.ForeignKey(User, on_delete=models.SET_NULL, related_name='responses', null=True, blank=True)
 
     def __str__(self):
         return f"{self.resident.full_name}'s response to {self.survey.title}"

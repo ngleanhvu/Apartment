@@ -1,12 +1,5 @@
-from http.client import responses
-from pickle import FALSE
-from xmlrpc.client import Fault
-
-import requests
-from django.contrib.auth import authenticate
-from django.http import JsonResponse
 from oauthlib.uri_validate import query
-
+import json
 from apartmentapp.paginations import PackagePagination
 from apartmentapp.serializers import StorageLockerSerializer, FeedbackSerializer, FeedbackResponseSerializer, \
     SurveySerializer, QuestionOptionSerializer, QuestionSerializer, MonthlyFeeSerializer, \
@@ -27,7 +20,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, status, generics, permissions
 from rest_framework.decorators import action, permission_classes
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response as RestResponse
 
@@ -58,7 +51,6 @@ class UserViewSet(viewsets.ViewSet,
     def current_user(self, request):
         return RestResponse(serializers.UserSerializer(request.user).data, status=status.HTTP_200_OK)
 
-
     # API active user
     @action(methods=['post'], detail=False, url_path='active-user')
     def active_user(self, request):
@@ -67,6 +59,7 @@ class UserViewSet(viewsets.ViewSet,
         password = request.data.get('password')
         retype_password = request.data.get('retype_password')
         thumbnail = request.FILES.get('avatar')
+
         print(username, password, retype_password, thumbnail)
 
         if not username or not password or not retype_password or not thumbnail:
@@ -92,52 +85,16 @@ class UserViewSet(viewsets.ViewSet,
                                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             user.set_password(password)
-            locker = StorageLocker(number=user.username + user.phone, user=user)
             user.changed_password = True
-            locker.save()
+            locker = StorageLocker(number=user.username+user.phone, user=user)
             user.save()
+            locker.save()
 
             return RestResponse({'msg': 'Active user success!'},
                             status=status.HTTP_200_OK)
 
         except:
             return RestResponse({'error', 'User not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-# class LoginViewSet(APIView):
-#     @csrf_exempt
-#     def post(self, request):  # Thay vì login_view, đặt là post()
-#         print("🚀 Đã vào hàm post()")
-#         username = request.data.get("username")
-#         password = request.data.get("password")
-#
-#
-#         if not username or not password:
-#             return JsonResponse({"error": "Missing credentials"}, status=400)
-#
-#         # Gửi request đến /o/token/
-#         token_url = "http://127.0.0.1:8000/o/token/"
-#
-#         print("Comming here")
-#
-#         data = {
-#             "grant_type": "password",
-#             "username": username,
-#             "password": password,
-#             "client_id": settings.OAUTH2_CLIENT_ID,
-#             "client_secret": settings.OAUTH2_CLIENT_SECRET,
-#         }
-#
-#         headers = {
-#             "Content-Type": "application/x-www-form-urlencoded"  # Đảm bảo đúng format
-#         }
-#
-#         response = requests.post(token_url, data=data, headers=headers)
-#
-#         if response.status_code == 200:
-#             return JsonResponse(response.json())  # Trả về access_token và refresh_token
-#         else:
-#             return JsonResponse(response.json(), status=response.status_code)
 
 class RoomViewSet(viewsets.ModelViewSet):
     queryset = Room.objects.filter(active=True)
@@ -181,11 +138,11 @@ class TransactionViewSet(viewsets.ViewSet,
             queryset = self.queryset.filter(id=pk)
             print(str(queryset.query))
 
-            return Response(serializers.TransactionDetailSerializer(queryset.first()).data,
+            return RestResponse(serializers.TransactionDetailSerializer(queryset.first()).data,
                             status=status.HTTP_200_OK)
         except Exception as ex:
             print(ex)
-            return Response({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return RestResponse({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
     # Stripe payment
@@ -193,57 +150,76 @@ class TransactionViewSet(viewsets.ViewSet,
     @action(methods=['post'], detail=False, url_path='stripe', permission_classes=[IsAuthenticated])
     def create_checkout_session_stripe(self, request):
         try:
+            # Lấy danh sách IDs từ request
             ids = request.data.get('ids')
-            ids = eval(ids)
+
+            if not ids:
+                return RestResponse({'error': 'No IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Sử dụng json.loads để parse danh sách IDs
+            try:
+                ids = json.loads(ids)
+            except json.JSONDecodeError:
+                return RestResponse({'error': 'Invalid IDs format. Must be a JSON array.'},
+                                    status=status.HTTP_400_BAD_REQUEST)
+
+            # Lọc các MonthlyFees theo điều kiện
             monthly_fees = MonthlyFee.objects.filter(
                 room=request.user.room,
                 status=MonthlyFeeStatus.PENDING.value,
-                id__in = ids
+                id__in=ids
             )
 
-
             if not monthly_fees.exists():
-                return RestResponse({'msg': 'No monthly fee need to pay'})
+                return RestResponse({'msg': 'No monthly fee to pay'}, status=status.HTTP_404_NOT_FOUND)
 
-            monthly_fee = monthly_fees.first()
-
-            data = []
-
+            # Tính tổng tiền
             total_amount = sum(fee.amount for fee in monthly_fees)
 
-            for item in monthly_fees:
-                y = {
+            # Chuẩn bị dữ liệu thanh toán
+            line_items = [
+                {
                     'price_data': {
                         'currency': 'vnd',
                         'product_data': {
-                            'name': f"{item.fee.name} của phòng {item.room.room_number}",
+                            'name': f"{fee.fee.name} của phòng {fee.room.room_number}",
                         },
-                        'unit_amount': int(item.amount),
+                        'unit_amount': int(fee.amount * 100),  # Stripe yêu cầu đơn vị là cent
                     },
                     'quantity': 1,
                 }
+                for fee in monthly_fees
+            ]
 
-                data.append(y)
+            # Lấy thông tin tháng và năm của khoản phí đầu tiên
+            first_fee = monthly_fees.first()
+            month = first_fee.created_date.month
+            year = first_fee.created_date.year
 
+            # Tạo PaymentIntent
             payment_intent = stripe.PaymentIntent.create(
                 amount=int(total_amount * 100),  # Chuyển đổi sang cent
                 currency='vnd',
-                metadata={'user_id': request.user.id,
-                          'ids': ids,
-                          'total_amount': total_amount,
-                          "month": monthly_fee.created_date.month,
-                          "year": monthly_fee.created_date.year},
-                statement_descriptor_suffix="Amount"
+                metadata={
+                    'user_id': str(request.user.id),
+                    'ids': ','.join(map(str, ids)),  # Chuyển danh sách IDs thành chuỗi
+                    'total_amount': str(total_amount),
+                    'month': str(month),
+                    'year': str(year),
+                    'room_id': str(request.user.room.id),
+                    'room_name': str(request.user.room.room_number)
+                },
+                statement_descriptor_suffix="Monthly Fees"
             )
 
-            # Trả về client_secret thay vì sessionId
+            # Trả về client_secret cho frontend
             return RestResponse({"clientSecret": payment_intent.client_secret}, status=status.HTTP_200_OK)
 
         except Exception as ex:
-            print(ex)
+            print(f"Error in create_checkout_session_stripe: {ex}")
             return RestResponse({'error': str(ex)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(methods=['post'], detail=False, url_path='webhook/stripe')
+    @action(methods=['post'], detail=False, url_path='webhook/stripe', permission_classes=[])
     def stripe_webhook(self, request):
         payload = request.body.decode(
             'utf-8')
@@ -263,6 +239,11 @@ class TransactionViewSet(viewsets.ViewSet,
         month = session["metadata"].get("month")
         year = session["metadata"].get("year")
         ids = session["metadata"].get("ids")
+        room_id = session["metadata"].get("room_id")
+        user_id = session["metadata"].get("user_id")
+        room_number = session["metadata"].get("room_name")
+        print(user_id)
+        print(room_id)
         print(event["type"])
 
         try:
@@ -335,6 +316,7 @@ class MonthlyFeeViewSet(ViewSet):
 
     @action(methods=['get'], detail=False, url_path='pending')
     def list_monthly_fee_pending(self, request):
+        print('a')
         queryset = MonthlyFee.objects.filter(
             status=MonthlyFeeStatus.PENDING.value,
             active=True,
@@ -424,7 +406,6 @@ class CommonNotificationViewSet(viewsets.ViewSet,
     queryset = CommonNotification.objects.filter(active=True)
     serializer_class = CommonNotificationSerializer
 
-
 def admin_check(user):
     return user.is_superuser
 
@@ -466,13 +447,13 @@ class StorageLockerViewSet(viewsets.ViewSet, generics.ListAPIView):
         return StorageLocker.objects.filter(user=user, active=True)
 
 
-class PackageViewSet(viewsets.ModelViewSet):
+class PackageViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView):
     serializer_class = serializers.PackageSerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = paginations.PackagePagination
 
     def get_permissions(self):
-        if self.action in ['list', 'partial_update']:
+        if self.action=='list':
             return [permissions.IsAuthenticated()]
         return [permissions.IsAdminUser()]
 
@@ -483,11 +464,8 @@ class PackageViewSet(viewsets.ModelViewSet):
         q=self.request.query_params.get('q')
         if q:
             query = query.filter(sender_name__icontains=q)
+
         return query
-    
-    def partial_update(self, request, *args, **kwargs):
-        super().partial_update(request, *args, **kwargs)
-        return RestResponse({"message": "Status updated successfully"}, status=status.HTTP_200_OK)
 
 
 class FeedbackViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView, generics.RetrieveAPIView):
