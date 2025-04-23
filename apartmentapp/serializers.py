@@ -53,7 +53,6 @@ class PackageSerializer(serializers.ModelSerializer):
             **validated_data,
             storage_locker=storage_locker,
         )
-
         self.send_sms(package)
         return package
 

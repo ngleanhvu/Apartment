@@ -34,7 +34,7 @@ TWILIO_AUTH_TOKEN = '077a939148d677c3f3963c548d517989'
 TWILIO_PHONE_NUMBER = '+12299220537'
 
 
-ALLOWED_HOSTS = ['192.168.1.68', 'localhost', '127.0.0.1', '10.0.2.2']
+ALLOWED_HOSTS = ['192.168.1.7', 'localhost', '127.0.0.1', '10.0.2.2']
 
 # Application definition
 
@@ -74,6 +74,10 @@ MIDDLEWARE = [
 
 ]
 
+OAUTH2_CLIENT_ID = "gUBQANHXJA2NdB19qVkkVGjDSs6ypJwWbBrTSvHS"
+OAUTH2_CLIENT_SECRET = "uOy5rNSuk2isnIZmQ99RrGEA9VbtSDMEIfEIpADmXObpDf8lYfJV6R1tjiHBe5qMxPu8oOY46LEovSRuEGNayOB1Xv109wGNd64CzSW59ZZQWn3Kq9sSp9lXF93P6zE"
+
+
 CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'apartment.urls'
@@ -105,7 +109,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'apartment_db_v3',
         'USER': 'root',
-        'PASSWORD': '1234',
+        'PASSWORD': 'root',
     }
 }
 
@@ -165,7 +169,12 @@ cloudinary.config(
     secure=True
 )
 
-OAUTH2_PROVIDER = {'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore'}
+OAUTH2_PROVIDER = {'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
+                   'SCOPES': {'read': 'Read scope', 'write': 'Write scope'},
+                   'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,
+                   'REFRESH_TOKEN_EXPIRE_SECONDS': 86400,
+                    "ALLOWED_GRANT_TYPES": ["password", "authorization_code", "refresh_token"],
+                   }
 
 # Stripe
 STRIPE_TEST_SECRET_KEY = 'sk_test_51QVllgLGRlPpjKfjbEEn7dEVvjYxYgwsUigFw7vBqjfcFnGWSNXJYBihEGEb1Krw08HyRzHVn5Ja3joFMb3oNf6t007VdyyRUh'

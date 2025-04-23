@@ -36,7 +36,11 @@ class ApartmentAdminSite(admin.AdminSite):
         if not survey_id:
             survey_id = surveys.first().id
 
-        responses = Response.objects.filter(survey__id=survey_id).values('question','question_option','question__content','question_option__content').annotate(counter=Count('resident', distinct=True)).order_by('question', 'question_option')
+        responses = (Response.objects.filter(survey__id=survey_id)
+                     .values('question','question_option','question__content','question_option__content')
+                     .annotate(counter=Count('resident', distinct=True))
+                     .order_by('question', 'question_option'))
+
         sum_resident_in_survey=Response.objects.filter(survey__id=survey_id).values('resident').distinct().count()
 
         stats = {}
@@ -91,13 +95,15 @@ def calculate_service_fee(modeladmin, request, queryset):
         monthly_fees = []
 
         for room in queryset:
-            if room.status == RoomStatus.AVAILABLE.value:
+
+            if room.status == RoomStatus.AVAILABLE:
                 continue
 
             monthly_fee = MonthlyFee(fee=fee,
                                      amount=fee.value,
                                      room=room,
                                      description=f"Phí dịch vụ tháng {datetime.now().month} năm {datetime.now().year} phòng {room.room_number}")
+            print("Des: ",monthly_fee.description)
             monthly_fees.append(monthly_fee)
 
         MonthlyFee.objects.bulk_create(monthly_fees)
@@ -121,7 +127,8 @@ def calculate_parking_fee(modeladmin, request, queryset):
                                          description=f"Phí giữ xe tháng {datetime.now().month} năm {datetime.now().year} phòng {room.room_number}")
                 monthly_fees.append(monthly_fee)
 
-        MonthlyFee.objects.bulk_create(monthly_fees)
+        for monthly_fee in monthly_fees:
+            monthly_fee.save()
 
         modeladmin.message_user(request, 'Tính toán thành công', level="success")
 

@@ -1,3 +1,10 @@
+from http.client import responses
+from pickle import FALSE
+from xmlrpc.client import Fault
+
+import requests
+from django.contrib.auth import authenticate
+from django.http import JsonResponse
 from oauthlib.uri_validate import query
 
 from apartmentapp.paginations import PackagePagination
@@ -51,6 +58,7 @@ class UserViewSet(viewsets.ViewSet,
     def current_user(self, request):
         return RestResponse(serializers.UserSerializer(request.user).data, status=status.HTTP_200_OK)
 
+
     # API active user
     @action(methods=['post'], detail=False, url_path='active-user')
     def active_user(self, request):
@@ -94,6 +102,42 @@ class UserViewSet(viewsets.ViewSet,
 
         except:
             return RestResponse({'error', 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# class LoginViewSet(APIView):
+#     @csrf_exempt
+#     def post(self, request):  # Thay vì login_view, đặt là post()
+#         print("🚀 Đã vào hàm post()")
+#         username = request.data.get("username")
+#         password = request.data.get("password")
+#
+#
+#         if not username or not password:
+#             return JsonResponse({"error": "Missing credentials"}, status=400)
+#
+#         # Gửi request đến /o/token/
+#         token_url = "http://127.0.0.1:8000/o/token/"
+#
+#         print("Comming here")
+#
+#         data = {
+#             "grant_type": "password",
+#             "username": username,
+#             "password": password,
+#             "client_id": settings.OAUTH2_CLIENT_ID,
+#             "client_secret": settings.OAUTH2_CLIENT_SECRET,
+#         }
+#
+#         headers = {
+#             "Content-Type": "application/x-www-form-urlencoded"  # Đảm bảo đúng format
+#         }
+#
+#         response = requests.post(token_url, data=data, headers=headers)
+#
+#         if response.status_code == 200:
+#             return JsonResponse(response.json())  # Trả về access_token và refresh_token
+#         else:
+#             return JsonResponse(response.json(), status=response.status_code)
 
 class RoomViewSet(viewsets.ModelViewSet):
     queryset = Room.objects.filter(active=True)
@@ -291,7 +335,6 @@ class MonthlyFeeViewSet(ViewSet):
 
     @action(methods=['get'], detail=False, url_path='pending')
     def list_monthly_fee_pending(self, request):
-        print('a')
         queryset = MonthlyFee.objects.filter(
             status=MonthlyFeeStatus.PENDING.value,
             active=True,
@@ -381,6 +424,7 @@ class CommonNotificationViewSet(viewsets.ViewSet,
     queryset = CommonNotification.objects.filter(active=True)
     serializer_class = CommonNotificationSerializer
 
+
 def admin_check(user):
     return user.is_superuser
 
@@ -422,13 +466,13 @@ class StorageLockerViewSet(viewsets.ViewSet, generics.ListAPIView):
         return StorageLocker.objects.filter(user=user, active=True)
 
 
-class PackageViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView):
+class PackageViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.PackageSerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = paginations.PackagePagination
 
     def get_permissions(self):
-        if self.action=='list':
+        if self.action in ['list', 'partial_update']:
             return [permissions.IsAuthenticated()]
         return [permissions.IsAdminUser()]
 
@@ -439,8 +483,11 @@ class PackageViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIV
         q=self.request.query_params.get('q')
         if q:
             query = query.filter(sender_name__icontains=q)
-
         return query
+    
+    def partial_update(self, request, *args, **kwargs):
+        super().partial_update(request, *args, **kwargs)
+        return RestResponse({"message": "Status updated successfully"}, status=status.HTTP_200_OK)
 
 
 class FeedbackViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView, generics.RetrieveAPIView):

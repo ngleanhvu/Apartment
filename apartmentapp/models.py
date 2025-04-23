@@ -126,7 +126,7 @@ class Package(BaseModel):
     def send_sms(self):
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
 
-        message = f"From {self.recipient_name}, your package is ready for pickup in your storage locker #{self.storage_locker.number}."
+        message = f"From {self.sender_name}, your package is ready for pickup in your storage locker #{self.storage_locker.number}."
         phone_number = f"+84{self.storage_locker.user.phone[1:]}" #Chuan so quoc te
 
         try:
@@ -314,7 +314,7 @@ class Question(BaseModel):
     def __str__(self):
         return self.content
 
-class QuestionOption(BaseModel): #For multiple choices and single choice
+class QuestionOption(BaseModel):
     content=models.TextField()
 
     def __str__(self):

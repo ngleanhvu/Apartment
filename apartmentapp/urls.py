@@ -5,6 +5,7 @@ from .views import MonthlyFeeViewSet
 
 # Ten API de so nhieu de theo chuan thiet ke RESTFull API
 r = DefaultRouter()
+
 r.register('users', views.UserViewSet, basename='users')
 r.register('transactions', views.TransactionViewSet, basename='transactions')
 r.register('vehicle-cards', views.VehicleCardViewSet, basename='vehicle-cards')
@@ -15,10 +16,12 @@ r.register('surveys', views.SurveyViewSet, 'surveys')
 r.register('responses', views.ResponseViewSet, 'responses')
 r.register('fees', views.FeeViewSet, basename='fees')
 r.register('notifications', views.CommonNotificationViewSet, basename='notifications')
+
 urlpatterns = [
     path('', include(r.urls)),
     path('monthly-fees/fees/<int:fee_id>/', MonthlyFeeViewSet.as_view({'get': 'list'})),
     path('monthly-fees/pending/', MonthlyFeeViewSet.as_view({'get': 'list_monthly_fee_pending'})),
     path('chat/list/', views.chat_list_view, name='chat_list'),
     path('chat/<int:receiver_id>/', views.chat_view, name='chat'),
+    # path("login/", LoginViewSet.as_view(), name="login"),
 ]
